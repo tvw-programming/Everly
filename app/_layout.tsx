@@ -2,12 +2,14 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { Platform, StyleSheet } from 'react-native';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
-import { attachNotificationListeners } from '@/lib/notifications';
+import { palette } from '@/constants/Colors';
 import { configureAudioMode } from '@/lib/audio';
+import { attachNotificationListeners } from '@/lib/notifications';
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -21,23 +23,40 @@ export default function RootLayout() {
   const [loaded, error] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
+  const [fontsReady, setFontsReady] = useState(false);
 
   useEffect(() => {
-    if (error) throw error;
+    if (error) {
+      // Don't hard-crash the app if a font fails — continue without it
+      setFontsReady(true);
+      SplashScreen.hideAsync();
+    }
   }, [error]);
 
   useEffect(() => {
     if (loaded) {
+      setFontsReady(true);
       SplashScreen.hideAsync();
     }
   }, [loaded]);
 
+  // Fail-open if fonts stall (common on some web environments)
   useEffect(() => {
-    void configureAudioMode();
+    const t = setTimeout(() => {
+      setFontsReady(true);
+      SplashScreen.hideAsync();
+    }, 2500);
+    return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web') {
+      void configureAudioMode();
+    }
     return attachNotificationListeners();
   }, []);
 
-  if (!loaded) {
+  if (!fontsReady && !loaded) {
     return null;
   }
 
@@ -49,7 +68,14 @@ function RootLayoutNav() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
+      <Stack
+        screenOptions={{
+          contentStyle: styles.content,
+          headerStyle: styles.header,
+          headerTintColor: palette.ink,
+          headerTitleStyle: styles.headerTitle,
+        }}
+      >
         <Stack.Screen
           name="index"
           options={{
@@ -60,7 +86,7 @@ function RootLayoutNav() {
         <Stack.Screen
           name="add-reminder"
           options={{
-            presentation: 'modal',
+            presentation: Platform.OS === 'web' ? 'card' : 'modal',
             title: 'New reminder',
             headerShadowVisible: false,
           }}
@@ -69,3 +95,18 @@ function RootLayoutNav() {
     </ThemeProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  content: {
+    flex: 1,
+    width: '100%',
+    backgroundColor: palette.paper,
+  },
+  header: {
+    backgroundColor: palette.paper,
+  },
+  headerTitle: {
+    fontWeight: '700',
+    color: palette.ink,
+  },
+});

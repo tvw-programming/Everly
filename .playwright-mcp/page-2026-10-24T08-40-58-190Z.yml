@@ -1,0 +1,45 @@
+- generic [ref=e44]:
+  - generic:
+    - generic:
+      - generic:
+        - link "Reminders, back" [ref=e46] [cursor=pointer]:
+          - /url: /
+        - heading "New reminder" [level=1] [ref=e49]
+  - generic [ref=e53]:
+    - generic [ref=e54]:
+      - generic [ref=e55]:
+        - generic [ref=e56]: "1"
+        - generic [ref=e58]: Basics
+      - generic [ref=e59]:
+        - generic [ref=e60]: "2"
+        - generic [ref=e62]: When
+      - generic [ref=e63]:
+        - generic [ref=e64]: "3"
+        - generic [ref=e66]: Sound
+      - generic [ref=e67]:
+        - generic [ref=e68]: "4"
+        - generic [ref=e70]: Review
+    - generic [ref=e109]:
+      - generic [ref=e110]: Pick the sound that plays
+      - generic [ref=e111]: Local MP3 only for now. Text-to-speech can plug in later via sound mode.
+      - generic [ref=e113] [cursor=pointer]:
+        - generic [ref=e114]:
+          - generic [ref=e115]: Chime
+          - generic [ref=e116]: Bright single tone
+        - generic [ref=e117]: Preview
+      - generic [ref=e120] [cursor=pointer]:
+        - generic [ref=e121]:
+          - generic [ref=e122]: Soft bell
+          - generic [ref=e123]: Gentle longer tone
+        - generic [ref=e124]: Preview
+      - generic [ref=e127] [cursor=pointer]:
+        - generic [ref=e128]:
+          - generic [ref=e129]: Alert tone
+          - generic [ref=e130]: Clear attention cue
+        - generic [ref=e131]: Preview
+      - generic [ref=e133] [cursor=pointer]:
+        - generic [ref=e134]: Use my own MP3
+        - generic [ref=e135]: Pick a file from this device
+    - generic [ref=e89]:
+      - generic [ref=e90] [cursor=pointer]: Back
+      - generic [active] [ref=e92] [cursor=pointer]: Continue

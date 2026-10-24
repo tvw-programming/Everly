@@ -1,0 +1,40 @@
+- generic [ref=e44]:
+  - generic:
+    - generic:
+      - generic:
+        - link "Reminders, back" [ref=e46] [cursor=pointer]:
+          - /url: /
+        - heading "New reminder" [level=1] [ref=e49]
+  - generic [ref=e53]:
+    - generic [ref=e54]:
+      - generic [ref=e55]:
+        - generic [ref=e56]: "1"
+        - generic [ref=e58]: Basics
+      - generic [ref=e59]:
+        - generic [ref=e60]: "2"
+        - generic [ref=e62]: When
+      - generic [ref=e63]:
+        - generic [ref=e64]: "3"
+        - generic [ref=e66]: Sound
+      - generic [ref=e67]:
+        - generic [ref=e68]: "4"
+        - generic [ref=e70]: Review
+    - generic [ref=e73]:
+      - generic [ref=e74]: What should we remind you about?
+      - generic [ref=e75]: Title
+      - textbox "e.g. Take blood pressure meds" [ref=e76]
+      - generic [ref=e77]: Notes (optional)
+      - textbox "Extra context for yourself" [ref=e78]
+      - generic [ref=e79]: Category
+      - generic [ref=e80] [cursor=pointer]:
+        - generic [ref=e81]: Health
+        - generic [ref=e82]: Medications, hydration, appointments
+      - generic [ref=e83] [cursor=pointer]:
+        - generic [ref=e84]: Daily routine
+        - generic [ref=e85]: Wake-up, meals, chores, habits
+      - generic [ref=e86] [cursor=pointer]:
+        - generic [ref=e87]: Communication
+        - generic [ref=e88]: Calls, messages, check-ins
+    - generic [ref=e89]:
+      - generic [ref=e90] [cursor=pointer]: Cancel
+      - generic [ref=e92] [cursor=pointer]: Continue

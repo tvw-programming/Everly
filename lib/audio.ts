@@ -1,17 +1,23 @@
 import { Audio, AVPlaybackStatus } from 'expo-av';
+import { Platform } from 'react-native';
 
 import { resolveSoundSource } from './sounds';
 
 let currentSound: Audio.Sound | null = null;
 
 export async function configureAudioMode(): Promise<void> {
-  await Audio.setAudioModeAsync({
-    allowsRecordingIOS: false,
-    playsInSilentModeIOS: true,
-    staysActiveInBackground: true,
-    shouldDuckAndroid: true,
-    playThroughEarpieceAndroid: false,
-  });
+  if (Platform.OS === 'web') return;
+  try {
+    await Audio.setAudioModeAsync({
+      allowsRecordingIOS: false,
+      playsInSilentModeIOS: true,
+      staysActiveInBackground: true,
+      shouldDuckAndroid: true,
+      playThroughEarpieceAndroid: false,
+    });
+  } catch {
+    // Audio mode is best-effort; never block the UI on it
+  }
 }
 
 export async function stopSound(): Promise<void> {

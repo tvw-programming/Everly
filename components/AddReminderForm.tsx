@@ -295,12 +295,12 @@ export function AddReminderForm({ onSave, onCancel }: Props) {
           <View style={styles.section}>
             <Text style={styles.heading}>When should it fire?</Text>
             <Text style={styles.fieldLabel}>Time · {formatTime12h(draft.time)}</Text>
-            {Platform.OS !== 'ios' && (
+            {Platform.OS === 'android' && (
               <Pressable style={styles.timeButton} onPress={() => setShowTimePicker(true)}>
                 <Text style={styles.timeButtonText}>Change time</Text>
               </Pressable>
             )}
-            {showTimePicker && (
+            {(Platform.OS === 'ios' || showTimePicker) && Platform.OS !== 'web' && (
               <DateTimePicker
                 value={timeToDate(draft.time)}
                 mode="time"
@@ -525,7 +525,7 @@ function ReviewRow({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: palette.paper },
+  root: { flex: 1, width: '100%', alignSelf: 'stretch', backgroundColor: palette.paper },
   steps: {
     flexDirection: 'row',
     justifyContent: 'space-between',

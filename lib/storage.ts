@@ -1,11 +1,46 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
 import type { Reminder } from './types';
 
 const STORAGE_KEY = '@reminders/v1';
 
+const memoryFallback = new Map<string, string>();
+
+async function readRaw(): Promise<string | null> {
+  try {
+    return await AsyncStorage.getItem(STORAGE_KEY);
+  } catch {
+    if (Platform.OS === 'web' && typeof localStorage !== 'undefined') {
+      try {
+        return localStorage.getItem(STORAGE_KEY);
+      } catch {
+        return memoryFallback.get(STORAGE_KEY) ?? null;
+      }
+    }
+    return memoryFallback.get(STORAGE_KEY) ?? null;
+  }
+}
+
+async function writeRaw(value: string): Promise<void> {
+  try {
+    await AsyncStorage.setItem(STORAGE_KEY, value);
+    return;
+  } catch {
+    if (Platform.OS === 'web' && typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem(STORAGE_KEY, value);
+        return;
+      } catch {
+        // fall through
+      }
+    }
+    memoryFallback.set(STORAGE_KEY, value);
+  }
+}
+
 export async function loadReminders(): Promise<Reminder[]> {
-  const raw = await AsyncStorage.getItem(STORAGE_KEY);
+  const raw = await readRaw();
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw) as Reminder[];
@@ -16,7 +51,7 @@ export async function loadReminders(): Promise<Reminder[]> {
 }
 
 export async function saveReminders(reminders: Reminder[]): Promise<void> {
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(reminders));
+  await writeRaw(JSON.stringify(reminders));
 }
 
 export async function upsertReminder(reminder: Reminder): Promise<Reminder[]> {

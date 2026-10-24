@@ -28,6 +28,7 @@ export function CategoryFilter({ value, onChange, counts }: Props) {
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
+      style={styles.scroll}
       contentContainerStyle={styles.row}
     >
       {FILTERS.map((filter) => {
@@ -61,14 +62,21 @@ export function CategoryFilter({ value, onChange, counts }: Props) {
 }
 
 const styles = StyleSheet.create({
+  scroll: {
+    flexGrow: 0,
+    flexShrink: 0,
+    maxHeight: 56,
+  },
   row: {
     gap: 8,
     paddingHorizontal: 20,
     paddingVertical: 4,
+    alignItems: 'center',
   },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
+    alignSelf: 'center',
     gap: 8,
     paddingVertical: 10,
     paddingHorizontal: 14,

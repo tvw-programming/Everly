@@ -1,0 +1,37 @@
+- generic [ref=e5]:
+  - heading "Reminders" [level=1] [ref=e7]
+  - generic [ref=e10]:
+    - generic [ref=e11]:
+      - generic [ref=e12]:
+        - generic [ref=e13]: Local reminders
+        - generic [ref=e14]: Your day, on cue
+      - link "Add reminder" [ref=e15] [cursor=pointer]:
+        - /url: /add-reminder
+        - generic [ref=e16]: +
+    - generic [ref=e18]:
+      - button "All 1" [ref=e152] [cursor=pointer]:
+        - generic [ref=e20]: All
+        - generic [ref=e21]: "1"
+      - button "Health 1" [ref=e153] [cursor=pointer]:
+        - generic [ref=e24]: Health
+        - generic [ref=e25]: "1"
+      - button "Daily routine 0" [ref=e27] [cursor=pointer]:
+        - generic [ref=e28]: Daily routine
+        - generic [ref=e29]: "0"
+      - button "Communication 0" [ref=e31] [cursor=pointer]:
+        - generic [ref=e32]: Communication
+        - generic [ref=e33]: "0"
+    - generic [ref=e35]: "Web preview: browse and add reminders here. Schedule + MP3 playback needs Expo Go or a device build."
+    - generic [ref=e157]:
+      - generic [ref=e158]:
+        - generic [ref=e159]: Health
+        - switch [checked] [ref=e164] [cursor=pointer]
+      - generic [ref=e165]: Take blood pressure meds
+      - generic [ref=e166]:
+        - generic [ref=e167]: Tomorrow · 8:40 AM
+        - generic [ref=e168]: ·
+        - generic [ref=e169]: Every day · 8:40 AM
+      - generic [ref=e170]:
+        - generic [ref=e171]: ♪ Chime
+        - button "Delete Take blood pressure meds" [ref=e172] [cursor=pointer]:
+          - generic [ref=e173]: Delete

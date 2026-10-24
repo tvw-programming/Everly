@@ -1,5 +1,5 @@
 import { Link, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -9,6 +9,7 @@ import {
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from 'react-native';
 
 import { CategoryFilter } from '@/components/CategoryFilter';
@@ -24,17 +25,27 @@ import { deleteReminder, loadReminders, upsertReminder } from '@/lib/storage';
 import type { CategoryFilter as Filter, Reminder } from '@/lib/types';
 
 export default function RemindersDashboard() {
+  const { width } = useWindowDimensions();
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [filter, setFilter] = useState<Filter>('all');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [permissionHint, setPermissionHint] = useState<string | null>(null);
+  const [permissionHint, setPermissionHint] = useState<string | null>(
+    Platform.OS === 'web'
+      ? 'Web preview: browse and add reminders here. Schedule + MP3 playback needs Expo Go or a device build.'
+      : null
+  );
 
   const refresh = useCallback(async () => {
     try {
       setError(null);
-      const list = await loadReminders();
+      const list = await Promise.race([
+        loadReminders(),
+        new Promise<Reminder[]>((_, reject) =>
+          setTimeout(() => reject(new Error('Timed out loading reminders')), 4000)
+        ),
+      ]);
       setReminders(list);
       if (Platform.OS !== 'web') {
         const granted = await ensureNotificationPermissions();
@@ -50,11 +61,17 @@ export default function RemindersDashboard() {
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load reminders');
+      setReminders([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, []);
+
+  // useFocusEffect alone can miss the first paint on web static/SSR — also load on mount
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
 
   useFocusEffect(
     useCallback(() => {
@@ -100,8 +117,13 @@ export default function RemindersDashboard() {
     setReminders(list);
   }
 
+  const shellStyle = [
+    styles.root,
+    Platform.OS === 'web' && width > 720 ? styles.rootWebWide : null,
+  ];
+
   return (
-    <View style={styles.root}>
+    <View style={shellStyle}>
       <View style={styles.header}>
         <View style={styles.headerText}>
           <Text style={styles.kicker}>Local reminders</Text>
@@ -145,6 +167,7 @@ export default function RemindersDashboard() {
         <FlatList
           data={visible}
           keyExtractor={(item) => item.id}
+          style={styles.listFlex}
           contentContainerStyle={styles.list}
           refreshControl={
             <RefreshControl
@@ -169,9 +192,17 @@ export default function RemindersDashboard() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+    width: '100%',
+    alignSelf: 'stretch',
     backgroundColor: palette.paper,
   },
+  rootWebWide: {
+    maxWidth: 720,
+    width: '100%',
+    alignSelf: 'center',
+  },
   header: {
+    width: '100%',
     paddingHorizontal: 20,
     paddingTop: 8,
     paddingBottom: 12,
@@ -180,7 +211,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 12,
   },
-  headerText: { flex: 1, gap: 2 },
+  headerText: { flex: 1, gap: 2, minWidth: 0 },
   kicker: {
     fontSize: 13,
     fontWeight: '700',
@@ -200,6 +231,7 @@ const styles = StyleSheet.create({
     backgroundColor: palette.teal,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
   addBtnText: {
     color: palette.white,
@@ -222,13 +254,19 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     color: '#92400E',
   },
+  listFlex: {
+    flex: 1,
+    width: '100%',
+  },
   list: {
     paddingTop: 12,
     paddingBottom: 40,
     flexGrow: 1,
+    width: '100%',
   },
   center: {
     flex: 1,
+    width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
