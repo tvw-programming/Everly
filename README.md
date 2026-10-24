@@ -1,8 +1,8 @@
 # Everly
 
-Zero-scroll executive companion for high-velocity solo operators.
+Zero-scroll executive companion + **Manifestation Command Deck** for high-velocity solo operators.
 
-Three buckets — **Personal**, **Social**, **Professional** — with voice-driven capture, local MP3 reminders, and a warm companion presence (avatar + skippable inbound voice notes).
+Task board: **Personal · Social · Professional**. Manifest tab: four pillars (**Personal · Social · Economical · Professional**) with identity scripts, dual-stem audio, Reality Lock, and Vision Studio.
 
 ## Quick start (mobile / Expo)
 
@@ -12,7 +12,7 @@ npm start          # port 19006
 npm run web        # UI preview in browser
 ```
 
-Use Expo Go on a device for notifications + timed MP3 playback. Web is for layout and voice-routing preview (type/paste thoughts).
+Use Expo Go on a device for notifications, MP3 playback, Voice Echo recording, and haptics. Web is for layout, voice-routing preview, and manifestation UI.
 
 ## Voice router API (optional)
 
@@ -31,23 +31,26 @@ uvicorn app.main:app --host 0.0.0.0 --port 18765 --reload
 
 ## What’s in this slice
 
-- Viewport-locked dashboard with three category quadrants (top 2 tasks + `+N more` sheet)
+- Viewport-locked dashboard with three category quadrants
 - Mic / Second Brain capture → multi-intent parse → route into buckets
-- Manual multi-step add form (`+`)
-- Ambient companion avatar (idle / listening / reacting / speaking)
-- Morning & evening warm inbound voice notes (skippable, ≤12s via `expo-speech`)
+- Companion: adaptive mood, rituals, hype interstitial, follow-ups, decompression room, Sync Score
+- **Manifest tab:** quad-pillar matrix, Identity Shift + Solfeggio stems, Voice Echo recorder, 60s Reality Lock, Vision prompt pin
 - Local notification + MP3 on device builds
 
 ## Project layout
 
 ```
-app/                 Expo Router screens
-components/          Dashboard, avatar, voice, forms
-lib/                 Types, storage, parser, companion engine
-backend/             FastAPI voice parse service
-assets/sounds/       Demo MP3s
+app/                      Expo Router (index, add-reminder, manifest)
+components/               Board, companion, manifestation UI
+lib/companion/            Mood, rituals, hype, follow-up, sync
+lib/manifestation/        Pillars, storage, dual-stem audio
+plans/                    Companion + manifestation roadmaps
+backend/                  FastAPI voice parse service
+assets/sounds/            Demo MP3s
+assets/manifestation/     Pillar stills + frequency tones
 ```
 
-## Next (planned)
+## Plans
 
-Adaptive mood, pre-event hype interstitial, relational follow-through, decompression room, shared Sync Score — see companion plan in the agent artifacts.
+- `plans/companion_relational_engine.md`
+- `plans/manifestation_command_deck.md`

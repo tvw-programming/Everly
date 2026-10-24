@@ -88,6 +88,12 @@ function RootLayoutNav() {
             title: 'Create New Reminder',
           }}
         />
+        <Stack.Screen
+          name="manifest"
+          options={{
+            headerShown: false,
+          }}
+        />
       </Stack>
     </ThemeProvider>
   );

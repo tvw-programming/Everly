@@ -1,4 +1,4 @@
-import { Link, useFocusEffect } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -9,19 +9,41 @@ import {
 } from 'react-native';
 
 import { AmbientAvatar } from '@/components/AmbientAvatar';
+import { BottomDock } from '@/components/BottomDock';
 import { CategoryQuadrant } from '@/components/CategoryQuadrant';
+import { DecompressionRoom } from '@/components/DecompressionRoom';
+import { HypeInterstitial } from '@/components/HypeInterstitial';
 import { PhoneShell } from '@/components/PhoneShell';
+import { SyncScoreBadge } from '@/components/SyncScoreBadge';
 import { VoiceCapture } from '@/components/VoiceCapture';
 import { WarmInboundBubble } from '@/components/WarmInboundBubble';
 import { categoryAccent, palette } from '@/constants/Colors';
 import {
+  bumpSync,
+  claimHypeDelivery,
+  completionsThisHour,
+  findHypeCandidates,
   inferMood,
+  loadSyncScore,
+  markMemoryDelivered,
+  moodFromTranscript,
+  persistBio,
   pickRitualForNow,
+  popDueMemories,
+  recordCompletion,
+  scheduleFollowUpFast,
   shouldDeliverRitual,
   snapshotFromSignals,
 } from '@/lib/companion/engine';
-import { buildReactionLine, buildRitualScript } from '@/lib/companion/scripts';
-import type { CompanionVisualState } from '@/lib/companion/types';
+import {
+  buildCoHabitLine,
+  buildFollowUpScript,
+  buildLateNightBoundary,
+  buildReactionLine,
+  buildRitualScript,
+  buildStressAck,
+} from '@/lib/companion/scripts';
+import type { CompanionMood, CompanionVisualState, SyncScore } from '@/lib/companion/types';
 import type { ParsedTaskDraft } from '@/lib/parser';
 import {
   createId,
@@ -42,17 +64,22 @@ export default function RemindersDashboard() {
   const [avatarState, setAvatarState] = useState<CompanionVisualState>('idle');
   const [inboundScript, setInboundScript] = useState<string | null>(null);
   const [listening, setListening] = useState(false);
+  const [mood, setMood] = useState<CompanionMood>('grounded');
+  const [hypeTask, setHypeTask] = useState<ReminderTask | null>(null);
+  const [decompressOpen, setDecompressOpen] = useState(false);
+  const [sync, setSync] = useState<SyncScore>({
+    sharedStreakDays: 0,
+    hydrationSyncs: 0,
+    movementSyncs: 0,
+    unlockTier: 0,
+  });
 
   const refresh = useCallback(async () => {
     try {
       setError(null);
-      const list = await Promise.race([
-        loadReminders(),
-        new Promise<ReminderTask[]>((_, reject) =>
-          setTimeout(() => reject(new Error('Timed out loading reminders')), 4000)
-        ),
-      ]);
+      const [list, score] = await Promise.all([loadReminders(), loadSyncScore()]);
       setReminders(list);
+      setSync(score);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load reminders');
       setReminders([]);
@@ -75,23 +102,52 @@ export default function RemindersDashboard() {
     setAvatarState(listening ? 'listening' : inboundScript ? 'speaking' : 'idle');
   }, [listening, inboundScript]);
 
-  // Proactive morning / evening ritual (once per day each)
+  // Rituals
   useEffect(() => {
     if (loading) return;
     let cancelled = false;
     (async () => {
+      const hour = new Date().getHours();
+      if (hour >= 0 && hour < 5) {
+        setInboundScript(buildLateNightBoundary());
+        setMood('soothing');
+        return;
+      }
       const ritual = pickRitualForNow();
       if (!ritual) return;
       const ok = await shouldDeliverRitual(ritual);
       if (!ok || cancelled) return;
-      const mood = inferMood(snapshotFromSignals({ hour: new Date().getHours() }));
-      const script = buildRitualScript(ritual, reminders, mood);
-      if (!cancelled) setInboundScript(script);
+      const nextMood = inferMood(snapshotFromSignals({ hour }));
+      setMood(nextMood);
+      setInboundScript(buildRitualScript(ritual, reminders, nextMood));
     })();
     return () => {
       cancelled = true;
     };
-  }, [loading, reminders]);
+  }, [loading]); // eslint-disable-line react-hooks/exhaustive-deps -- once per mount/load
+
+  // Hype window poll + follow-up memories
+  useEffect(() => {
+    if (loading) return;
+    const tick = async () => {
+      const candidates = findHypeCandidates(reminders);
+      for (const task of candidates) {
+        const claimed = await claimHypeDelivery(task.id);
+        if (claimed) {
+          setHypeTask(task);
+          break;
+        }
+      }
+      const due = await popDueMemories();
+      if (due[0] && !inboundScript) {
+        setInboundScript(due[0].prompt);
+        await markMemoryDelivered(due[0].id);
+      }
+    };
+    void tick();
+    const id = setInterval(() => void tick(), 20_000);
+    return () => clearInterval(id);
+  }, [loading, reminders, inboundScript]);
 
   const byCategory = useMemo(() => {
     const today = reminders.filter((r) => r.enabled && isScheduledToday(r.schedule));
@@ -105,19 +161,7 @@ export default function RemindersDashboard() {
     return map;
   }, [reminders]);
 
-  async function handleToggle(id: string, completed: boolean) {
-    const current = reminders.find((r) => r.id === id);
-    if (!current) return;
-    const list = await upsertReminder({ ...current, completed });
-    setReminders(list);
-    if (completed) {
-      setAvatarState('reacting');
-      setInboundScript(buildReactionLine({ ...current, completed: true }));
-      setTimeout(() => setAvatarState('idle'), 700);
-    }
-  }
-
-  async function handleVoiceParsed(items: ParsedTaskDraft[]) {
+  async function createFromDrafts(items: ParsedTaskDraft[]) {
     const created: ReminderTask[] = items.map((item) => {
       const time =
         item.time ??
@@ -142,18 +186,51 @@ export default function RemindersDashboard() {
         createdAt: new Date().toISOString(),
       };
     });
-
     for (const rem of created) {
       rem.notificationId = await scheduleReminderNotification(rem);
     }
     const list = await upsertMany(created);
     setReminders(list);
+    return created;
+  }
+
+  async function handleToggle(id: string, completed: boolean) {
+    const current = reminders.find((r) => r.id === id);
+    if (!current) return;
+    const list = await upsertReminder({ ...current, completed });
+    setReminders(list);
+    if (completed) {
+      const count = await recordCompletion();
+      const snap = snapshotFromSignals({ completionsLastHour: count });
+      await persistBio(snap);
+      const nextMood = inferMood(snap);
+      setMood(nextMood);
+      setAvatarState('reacting');
+      setInboundScript(buildReactionLine({ ...current, completed: true }, nextMood));
+      await scheduleFollowUpFast({ ...current, completed: true }, buildFollowUpScript(current));
+      setTimeout(() => setAvatarState('idle'), 700);
+    }
+  }
+
+  async function handleVoiceParsed(items: ParsedTaskDraft[], raw?: string) {
+    if (raw) {
+      const snap = moodFromTranscript(raw);
+      await persistBio(snap);
+      const nextMood = inferMood(snap);
+      setMood(nextMood);
+      if (snap.signals.includes('rapid_speech')) {
+        setInboundScript(buildStressAck(raw));
+      }
+    }
+    const created = await createFromDrafts(items);
     setAvatarState('reacting');
-    setInboundScript(
-      created.length === 1
-        ? `Got it—I routed that into ${created[0].category}.`
-        : `Routed ${created.length} thoughts into your buckets. Nice capture.`
-    );
+    if (!inboundScript) {
+      setInboundScript(
+        created.length === 1
+          ? `Got it—I routed that into ${created[0].category}.`
+          : `Routed ${created.length} thoughts into your buckets.`
+      );
+    }
   }
 
   return (
@@ -161,16 +238,36 @@ export default function RemindersDashboard() {
       <View style={styles.root}>
         <View style={styles.header}>
           <Text style={styles.headerDate}>{formatHeaderDate()}</Text>
-          <Text style={styles.headerSub}>Companion · zero-scroll executive board</Text>
+          <Text style={styles.headerSub}>
+            Companion · mood {mood} · zero-scroll board
+          </Text>
         </View>
 
         <View style={styles.presence}>
           <AmbientAvatar
             state={avatarState}
             onPress={() => {
+              const hour = new Date().getHours();
+              if (hour >= 0 && hour < 5) {
+                setDecompressOpen(true);
+                return;
+              }
               const ritual = pickRitualForNow() ?? 'morning';
-              const mood = inferMood(snapshotFromSignals({ hour: new Date().getHours() }));
               setInboundScript(buildRitualScript(ritual, reminders, mood));
+            }}
+            onLongPress={() => setDecompressOpen(true)}
+          />
+          <SyncScoreBadge
+            score={sync}
+            onHydration={async () => {
+              const s = await bumpSync('hydration');
+              setSync(s);
+              setInboundScript(buildCoHabitLine('hydration'));
+            }}
+            onMovement={async () => {
+              const s = await bumpSync('movement');
+              setSync(s);
+              setInboundScript(buildCoHabitLine('movement'));
             }}
           />
         </View>
@@ -212,25 +309,26 @@ export default function RemindersDashboard() {
         />
 
         <VoiceCapture
-          onParsed={handleVoiceParsed}
+          onParsed={(items) => handleVoiceParsed(items)}
           onOpenChange={(open) => setListening(open)}
+          onTranscriptMood={(text) => {
+            const snap = moodFromTranscript(text);
+            void persistBio(snap);
+            setMood(inferMood(snap));
+          }}
         />
 
-        <View style={styles.bottomNav}>
-          <View style={styles.navSide}>
-            <Text style={[styles.navIcon, styles.navActive]}>⌂</Text>
-            <Text style={[styles.navLabel, styles.navActive]}>Home</Text>
-          </View>
-          <Link href="/add-reminder" asChild>
-            <Pressable style={styles.fab} accessibilityLabel="Add reminder manually">
-              <Text style={styles.fabPlus}>+</Text>
-            </Pressable>
-          </Link>
-          <View style={styles.navSide}>
-            <Text style={styles.navIcon}>▦</Text>
-            <Text style={styles.navLabel}>Calendar</Text>
-          </View>
-        </View>
+        <HypeInterstitial task={hypeTask} onDismiss={() => setHypeTask(null)} />
+        <DecompressionRoom
+          visible={decompressOpen}
+          onClose={() => setDecompressOpen(false)}
+          onExtract={async (items) => {
+            await createFromDrafts(items);
+            setInboundScript('Parked. Sleep—tomorrow’s board is ready.');
+          }}
+        />
+
+        <BottomDock active="home" />
       </View>
     </PhoneShell>
   );
@@ -241,13 +339,13 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: palette.accent,
     paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 12,
+    paddingTop: 18,
+    paddingBottom: 10,
     borderBottomLeftRadius: 22,
     borderBottomRightRadius: 22,
   },
   headerDate: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '800',
     color: palette.white,
     letterSpacing: -0.4,
@@ -258,10 +356,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: 'rgba(255,255,255,0.88)',
   },
-  presence: {
-    paddingVertical: 6,
-    alignItems: 'center',
-  },
+  presence: { paddingVertical: 4, alignItems: 'center', gap: 2 },
   board: {
     flex: 1,
     minHeight: 0,
@@ -273,34 +368,4 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
   error: { color: palette.danger, textAlign: 'center', paddingHorizontal: 16 },
   retry: { color: palette.accentDark, fontWeight: '700' },
-  bottomNav: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    paddingHorizontal: 36,
-    paddingTop: 8,
-    paddingBottom: 14,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: palette.border,
-    backgroundColor: palette.white,
-  },
-  navSide: { width: 72, alignItems: 'center', gap: 2, paddingBottom: 4 },
-  navIcon: { fontSize: 18, color: palette.muted },
-  navLabel: { fontSize: 11, fontWeight: '600', color: palette.muted },
-  navActive: { color: palette.accent },
-  fab: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: palette.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: -22,
-    shadowColor: palette.accentDark,
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 5,
-  },
-  fabPlus: { color: palette.white, fontSize: 30, marginTop: -2 },
 });

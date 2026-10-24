@@ -7,9 +7,10 @@ import type { CompanionVisualState } from '@/lib/companion/types';
 type Props = {
   state: CompanionVisualState;
   onPress?: () => void;
+  onLongPress?: () => void;
 };
 
-export function AmbientAvatar({ state, onPress }: Props) {
+export function AmbientAvatar({ state, onPress, onLongPress }: Props) {
   const pulse = useRef(new Animated.Value(0)).current;
   const glow = useRef(new Animated.Value(0.35)).current;
 
@@ -69,7 +70,12 @@ export function AmbientAvatar({ state, onPress }: Props) {
   });
 
   return (
-    <Pressable onPress={onPress} accessibilityLabel="Companion presence" style={styles.wrap}>
+    <Pressable
+      onPress={onPress}
+      onLongPress={onLongPress}
+      accessibilityLabel="Companion presence"
+      style={styles.wrap}
+    >
       <Animated.View style={[styles.halo, { opacity: glow, transform: [{ scale }] }]} />
       <View style={styles.core}>
         <View style={styles.inner} />

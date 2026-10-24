@@ -18,9 +18,10 @@ import { CATEGORY_LABELS } from '@/lib/types';
 type Props = {
   onParsed: (items: ParsedTaskDraft[]) => Promise<void>;
   onOpenChange?: (open: boolean) => void;
+  onTranscriptMood?: (text: string) => void;
 };
 
-export function VoiceCapture({ onParsed, onOpenChange }: Props) {
+export function VoiceCapture({ onParsed, onOpenChange, onTranscriptMood }: Props) {
   const [open, setOpen] = useState(false);
 
   function setSheet(next: boolean) {
@@ -40,6 +41,7 @@ export function VoiceCapture({ onParsed, onOpenChange }: Props) {
     setBusy(true);
     setError(null);
     try {
+      onTranscriptMood?.(transcript.trim());
       const result = await parseVoiceTranscript(transcript.trim());
       if (!result.parsedItems.length) {
         setError(result.unresolvedNotes || 'Could not extract tasks');
