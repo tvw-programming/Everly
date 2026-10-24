@@ -1,78 +1,102 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
-import { PILLARS } from './seed';
-import type { ManifestPillar, ManifestPillarId } from './types';
+import { createSeedDeck } from './seeds';
+import type { ManifestDeckState, ManifestPillar, ManifestPillarId } from './types';
 
-const KEY = '@manifestation/pillars/v1';
-const IDENTITY_KEY = '@manifestation/identity/v1';
+const KEY = '@manifestation/deck/v1';
 const memory = new Map<string, string>();
 
-async function read(key: string): Promise<string | null> {
+async function read(): Promise<string | null> {
   try {
-    return await AsyncStorage.getItem(key);
+    return await AsyncStorage.getItem(KEY);
   } catch {
     if (Platform.OS === 'web' && typeof localStorage !== 'undefined') {
       try {
-        return localStorage.getItem(key);
+        return localStorage.getItem(KEY);
       } catch {
-        return memory.get(key) ?? null;
+        return memory.get(KEY) ?? null;
       }
     }
-    return memory.get(key) ?? null;
+    return memory.get(KEY) ?? null;
   }
 }
 
-async function write(key: string, value: string): Promise<void> {
+async function write(value: string): Promise<void> {
   try {
-    await AsyncStorage.setItem(key, value);
+    await AsyncStorage.setItem(KEY, value);
   } catch {
     if (Platform.OS === 'web' && typeof localStorage !== 'undefined') {
       try {
-        localStorage.setItem(key, value);
+        localStorage.setItem(KEY, value);
         return;
       } catch {
         // fall through
       }
     }
-    memory.set(key, value);
+    memory.set(KEY, value);
   }
 }
 
-export async function loadPillars(): Promise<ManifestPillar[]> {
-  const raw = await read(KEY);
-  if (!raw) return PILLARS.map((p) => ({ ...p }));
+function mergeWithSeed(raw: ManifestDeckState): ManifestDeckState {
+  const seed = createSeedDeck();
+  const pillars = { ...seed.pillars };
+  for (const id of Object.keys(seed.pillars) as ManifestPillarId[]) {
+    pillars[id] = { ...seed.pillars[id], ...(raw.pillars?.[id] ?? {}) };
+  }
+  return {
+    identityCode: raw.identityCode || seed.identityCode,
+    auraScore: typeof raw.auraScore === 'number' ? raw.auraScore : seed.auraScore,
+    voiceMix: typeof raw.voiceMix === 'number' ? raw.voiceMix : seed.voiceMix,
+    pillars,
+  };
+}
+
+export async function loadDeck(): Promise<ManifestDeckState> {
+  const raw = await read();
+  if (!raw) {
+    const seed = createSeedDeck();
+    await write(JSON.stringify(seed));
+    return seed;
+  }
   try {
-    const overrides = JSON.parse(raw) as Partial<
-      Record<ManifestPillarId, Partial<ManifestPillar>>
-    >;
-    return PILLARS.map((p) => ({ ...p, ...overrides[p.id] }));
+    return mergeWithSeed(JSON.parse(raw) as ManifestDeckState);
   } catch {
-    return PILLARS.map((p) => ({ ...p }));
+    return createSeedDeck();
   }
 }
 
-export async function savePillarPatch(
+export async function saveDeck(deck: ManifestDeckState): Promise<void> {
+  await write(JSON.stringify(deck));
+}
+
+export async function updatePillar(
   id: ManifestPillarId,
-  patch: Partial<Pick<ManifestPillar, 'voiceUri' | 'customStillUri' | 'visionPrompt'>>
-): Promise<void> {
-  const raw = await read(KEY);
-  let overrides: Partial<Record<ManifestPillarId, Partial<ManifestPillar>>> = {};
-  if (raw) {
-    try {
-      overrides = JSON.parse(raw) as typeof overrides;
-    } catch {
-      overrides = {};
-    }
-  }
-  overrides[id] = { ...(overrides[id] ?? {}), ...patch };
-  await write(KEY, JSON.stringify(overrides));
+  patch: Partial<ManifestPillar>
+): Promise<ManifestDeckState> {
+  const deck = await loadDeck();
+  deck.pillars[id] = { ...deck.pillars[id], ...patch };
+  await saveDeck(deck);
+  return deck;
 }
 
-export async function loadIdentityCode(): Promise<string> {
-  return (await read(IDENTITY_KEY)) ?? 'I construct generational software & compound wealth';
+export async function setAuraScore(score: number): Promise<ManifestDeckState> {
+  const deck = await loadDeck();
+  deck.auraScore = Math.max(0, Math.min(100, Math.round(score)));
+  await saveDeck(deck);
+  return deck;
 }
 
-export async function saveIdentityCode(code: string): Promise<void> {
-  await write(IDENTITY_KEY, code.trim());
+export async function setVoiceMix(mix: number): Promise<ManifestDeckState> {
+  const deck = await loadDeck();
+  deck.voiceMix = Math.max(0.1, Math.min(0.9, mix));
+  await saveDeck(deck);
+  return deck;
+}
+
+export async function setIdentityCode(code: string): Promise<ManifestDeckState> {
+  const deck = await loadDeck();
+  deck.identityCode = code.trim() || deck.identityCode;
+  await saveDeck(deck);
+  return deck;
 }

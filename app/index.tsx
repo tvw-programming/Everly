@@ -1,4 +1,4 @@
-import { useFocusEffect } from 'expo-router';
+import { Link, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -9,7 +9,6 @@ import {
 } from 'react-native';
 
 import { AmbientAvatar } from '@/components/AmbientAvatar';
-import { BottomDock } from '@/components/BottomDock';
 import { CategoryQuadrant } from '@/components/CategoryQuadrant';
 import { DecompressionRoom } from '@/components/DecompressionRoom';
 import { HypeInterstitial } from '@/components/HypeInterstitial';
@@ -45,6 +44,7 @@ import {
 } from '@/lib/companion/scripts';
 import type { CompanionMood, CompanionVisualState, SyncScore } from '@/lib/companion/types';
 import type { ParsedTaskDraft } from '@/lib/parser';
+import { setAuraScore } from '@/lib/manifestation/storage';
 import {
   createId,
   formatHeaderDate,
@@ -80,6 +80,11 @@ export default function RemindersDashboard() {
       const [list, score] = await Promise.all([loadReminders(), loadSyncScore()]);
       setReminders(list);
       setSync(score);
+      const aura = Math.min(
+        100,
+        55 + score.hydrationSyncs + score.movementSyncs * 2 + list.filter((t) => t.completed).length
+      );
+      await setAuraScore(aura);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load reminders');
       setReminders([]);
@@ -99,34 +104,31 @@ export default function RemindersDashboard() {
   );
 
   useEffect(() => {
+    if (hypeTask) return;
     setAvatarState(listening ? 'listening' : inboundScript ? 'speaking' : 'idle');
-  }, [listening, inboundScript]);
+  }, [listening, inboundScript, hypeTask]);
 
   // Rituals
   useEffect(() => {
     if (loading) return;
     let cancelled = false;
     (async () => {
-      const hour = new Date().getHours();
-      if (hour >= 0 && hour < 5) {
-        setInboundScript(buildLateNightBoundary());
-        setMood('soothing');
-        return;
-      }
       const ritual = pickRitualForNow();
       if (!ritual) return;
       const ok = await shouldDeliverRitual(ritual);
       if (!ok || cancelled) return;
-      const nextMood = inferMood(snapshotFromSignals({ hour }));
-      setMood(nextMood);
-      setInboundScript(buildRitualScript(ritual, reminders, nextMood));
+      const bio = snapshotFromSignals({ hour: new Date().getHours() });
+      await persistBio(bio);
+      const m = inferMood(bio);
+      setMood(m);
+      if (!cancelled) setInboundScript(buildRitualScript(ritual, reminders, m));
     })();
     return () => {
       cancelled = true;
     };
-  }, [loading]); // eslint-disable-line react-hooks/exhaustive-deps -- once per mount/load
+  }, [loading, reminders]);
 
-  // Hype window poll + follow-up memories
+  // Hype interstitial poll
   useEffect(() => {
     if (loading) return;
     const tick = async () => {
@@ -138,16 +140,35 @@ export default function RemindersDashboard() {
           break;
         }
       }
+    };
+    void tick();
+    const id = setInterval(() => void tick(), 30_000);
+    return () => clearInterval(id);
+  }, [loading, reminders]);
+
+  // Follow-through memories
+  useEffect(() => {
+    if (loading) return;
+    const tick = async () => {
       const due = await popDueMemories();
-      if (due[0] && !inboundScript) {
-        setInboundScript(due[0].prompt);
-        await markMemoryDelivered(due[0].id);
+      for (const mem of due) {
+        setInboundScript(mem.prompt);
+        await markMemoryDelivered(mem.id, false);
       }
     };
     void tick();
     const id = setInterval(() => void tick(), 20_000);
     return () => clearInterval(id);
-  }, [loading, reminders, inboundScript]);
+  }, [loading]);
+
+  // Late-night boundary
+  useEffect(() => {
+    const h = new Date().getHours();
+    if (h >= 0 && h < 5 && !loading) {
+      setMood('soothing');
+      setInboundScript((prev) => prev ?? buildLateNightBoundary());
+    }
+  }, [loading]);
 
   const byCategory = useMemo(() => {
     const today = reminders.filter((r) => r.enabled && isScheduledToday(r.schedule));
@@ -161,7 +182,7 @@ export default function RemindersDashboard() {
     return map;
   }, [reminders]);
 
-  async function createFromDrafts(items: ParsedTaskDraft[]) {
+  async function draftsToTasks(items: ParsedTaskDraft[]): Promise<ReminderTask[]> {
     const created: ReminderTask[] = items.map((item) => {
       const time =
         item.time ??
@@ -189,8 +210,6 @@ export default function RemindersDashboard() {
     for (const rem of created) {
       rem.notificationId = await scheduleReminderNotification(rem);
     }
-    const list = await upsertMany(created);
-    setReminders(list);
     return created;
   }
 
@@ -201,36 +220,43 @@ export default function RemindersDashboard() {
     setReminders(list);
     if (completed) {
       const count = await recordCompletion();
-      const snap = snapshotFromSignals({ completionsLastHour: count });
-      await persistBio(snap);
-      const nextMood = inferMood(snap);
-      setMood(nextMood);
+      const bio = snapshotFromSignals({ completionsLastHour: count });
+      await persistBio(bio);
+      const m = inferMood(bio);
+      setMood(m);
       setAvatarState('reacting');
-      setInboundScript(buildReactionLine({ ...current, completed: true }, nextMood));
-      await scheduleFollowUpFast({ ...current, completed: true }, buildFollowUpScript(current));
+      setInboundScript(buildReactionLine({ ...current, completed: true }, m));
+      await scheduleFollowUpFast(current, buildFollowUpScript(current));
       setTimeout(() => setAvatarState('idle'), 700);
     }
   }
 
   async function handleVoiceParsed(items: ParsedTaskDraft[], raw?: string) {
     if (raw) {
-      const snap = moodFromTranscript(raw);
-      await persistBio(snap);
-      const nextMood = inferMood(snap);
-      setMood(nextMood);
-      if (snap.signals.includes('rapid_speech')) {
+      const bio = moodFromTranscript(raw);
+      await persistBio(bio);
+      const m = inferMood(bio);
+      setMood(m);
+      if (m === 'soothing' && bio.signals.includes('rapid_speech')) {
         setInboundScript(buildStressAck(raw));
       }
     }
-    const created = await createFromDrafts(items);
+    const created = await draftsToTasks(items);
+    const list = await upsertMany(created);
+    setReminders(list);
     setAvatarState('reacting');
-    if (!inboundScript) {
-      setInboundScript(
-        created.length === 1
-          ? `Got it—I routed that into ${created[0].category}.`
-          : `Routed ${created.length} thoughts into your buckets.`
-      );
-    }
+    setInboundScript(
+      created.length === 1
+        ? `Got it—I routed that into ${created[0].category}.`
+        : `Routed ${created.length} thoughts into your buckets.`
+    );
+  }
+
+  async function onCoHabit(kind: 'hydration' | 'movement') {
+    const score = await bumpSync(kind);
+    setSync(score);
+    setInboundScript(buildCoHabitLine(kind));
+    setAvatarState('reacting');
   }
 
   return (
@@ -259,16 +285,8 @@ export default function RemindersDashboard() {
           />
           <SyncScoreBadge
             score={sync}
-            onHydration={async () => {
-              const s = await bumpSync('hydration');
-              setSync(s);
-              setInboundScript(buildCoHabitLine('hydration'));
-            }}
-            onMovement={async () => {
-              const s = await bumpSync('movement');
-              setSync(s);
-              setInboundScript(buildCoHabitLine('movement'));
-            }}
+            onHydration={() => void onCoHabit('hydration')}
+            onMovement={() => void onCoHabit('movement')}
           />
         </View>
 
@@ -309,26 +327,44 @@ export default function RemindersDashboard() {
         />
 
         <VoiceCapture
-          onParsed={(items) => handleVoiceParsed(items)}
+          onParsed={handleVoiceParsed}
           onOpenChange={(open) => setListening(open)}
           onTranscriptMood={(text) => {
-            const snap = moodFromTranscript(text);
-            void persistBio(snap);
-            setMood(inferMood(snap));
+            const bio = moodFromTranscript(text);
+            void persistBio(bio).then(() => setMood(inferMood(bio)));
           }}
         />
 
         <HypeInterstitial task={hypeTask} onDismiss={() => setHypeTask(null)} />
+
         <DecompressionRoom
           visible={decompressOpen}
           onClose={() => setDecompressOpen(false)}
           onExtract={async (items) => {
-            await createFromDrafts(items);
-            setInboundScript('Parked. Sleep—tomorrow’s board is ready.');
+            const created = await draftsToTasks(items);
+            const list = await upsertMany(created);
+            setReminders(list);
+            setInboundScript('Parked those worries as tasks. Rest—I have the board.');
           }}
         />
 
-        <BottomDock active="home" />
+        <View style={styles.bottomNav}>
+          <View style={styles.navSide}>
+            <Text style={[styles.navIcon, styles.navActive]}>⌂</Text>
+            <Text style={[styles.navLabel, styles.navActive]}>Home</Text>
+          </View>
+          <Link href="/add-reminder" asChild>
+            <Pressable style={styles.fab} accessibilityLabel="Add reminder manually">
+              <Text style={styles.fabPlus}>+</Text>
+            </Pressable>
+          </Link>
+          <Link href="/manifestation" asChild>
+            <Pressable style={styles.navSide}>
+              <Text style={styles.navIcon}>✦</Text>
+              <Text style={styles.navLabel}>Manifest</Text>
+            </Pressable>
+          </Link>
+        </View>
       </View>
     </PhoneShell>
   );
@@ -356,7 +392,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: 'rgba(255,255,255,0.88)',
   },
-  presence: { paddingVertical: 4, alignItems: 'center', gap: 2 },
+  presence: { paddingTop: 4, paddingBottom: 2, alignItems: 'center', gap: 2 },
   board: {
     flex: 1,
     minHeight: 0,
@@ -368,4 +404,34 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
   error: { color: palette.danger, textAlign: 'center', paddingHorizontal: 16 },
   retry: { color: palette.accentDark, fontWeight: '700' },
+  bottomNav: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    paddingHorizontal: 36,
+    paddingTop: 8,
+    paddingBottom: 14,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: palette.border,
+    backgroundColor: palette.white,
+  },
+  navSide: { width: 72, alignItems: 'center', gap: 2, paddingBottom: 4 },
+  navIcon: { fontSize: 18, color: palette.muted },
+  navLabel: { fontSize: 11, fontWeight: '600', color: palette.muted },
+  navActive: { color: palette.accent },
+  fab: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: palette.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: -22,
+    shadowColor: palette.accentDark,
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 5,
+  },
+  fabPlus: { color: palette.white, fontSize: 30, marginTop: -2 },
 });

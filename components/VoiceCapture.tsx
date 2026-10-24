@@ -16,7 +16,7 @@ import type { ParsedTaskDraft } from '@/lib/parser';
 import { CATEGORY_LABELS } from '@/lib/types';
 
 type Props = {
-  onParsed: (items: ParsedTaskDraft[]) => Promise<void>;
+  onParsed: (items: ParsedTaskDraft[], raw?: string) => Promise<void>;
   onOpenChange?: (open: boolean) => void;
   onTranscriptMood?: (text: string) => void;
 };
@@ -59,7 +59,7 @@ export function VoiceCapture({ onParsed, onOpenChange, onTranscriptMood }: Props
   async function confirmSave() {
     setBusy(true);
     try {
-      await onParsed(preview);
+      await onParsed(preview, transcript.trim());
       setSheet(false);
       setTranscript('');
       setPreview([]);

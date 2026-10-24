@@ -23,9 +23,9 @@ export function BottomDock({ active }: Props) {
         </Pressable>
       </Link>
 
-      <Link href="/manifest" asChild>
+      <Link href="/manifestation" asChild>
         <Pressable style={styles.navSide}>
-          <Text style={[styles.navIcon, active === 'manifest' && styles.navActive]}>◈</Text>
+          <Text style={[styles.navIcon, active === 'manifest' && styles.navActive]}>✦</Text>
           <Text style={[styles.navLabel, active === 'manifest' && styles.navActive]}>Manifest</Text>
         </Pressable>
       </Link>

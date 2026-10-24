@@ -10,30 +10,28 @@ type Props = {
   onLongPress: () => void;
 };
 
-export function PillarTile({ pillar, active, onPress, onLongPress }: Props) {
-  const source = pillar.customStillUri
-    ? { uri: pillar.customStillUri }
-    : pillar.stillAsset;
-
+export function PillarCard({ pillar, active, onPress, onLongPress }: Props) {
   return (
     <Pressable
       onPress={onPress}
       onLongPress={onLongPress}
       style={[
-        styles.tile,
+        styles.card,
         { borderColor: pillar.accent },
         active && { shadowColor: pillar.accent, shadowOpacity: 0.55 },
       ]}
     >
-      <ImageBackground source={source} style={styles.bg} imageStyle={styles.bgImage}>
+      <ImageBackground source={{ uri: pillar.stillUri }} style={styles.bg} imageStyle={styles.bgImage}>
         <View style={styles.glass}>
           <Text style={[styles.label, { color: pillar.accent }]}>{pillar.label}</Text>
-          <Text style={styles.identity} numberOfLines={3}>
-            {pillar.identity}
+          {pillar.goalLabel ? <Text style={styles.goal}>{pillar.goalLabel}</Text> : null}
+          <Text style={styles.affirm} numberOfLines={3}>
+            {pillar.identityScript}
           </Text>
           <Text style={styles.micro} numberOfLines={1}>
             {pillar.microStrip}
           </Text>
+          <Text style={styles.hint}>Tap play · Hold Reality Lock</Text>
         </View>
       </ImageBackground>
     </Pressable>
@@ -41,26 +39,29 @@ export function PillarTile({ pillar, active, onPress, onLongPress }: Props) {
 }
 
 const styles = StyleSheet.create({
-  tile: {
+  card: {
     flex: 1,
     minHeight: 0,
     borderRadius: 16,
     borderWidth: 1.5,
     overflow: 'hidden',
-    backgroundColor: palette.ink,
+    backgroundColor: '#0B1220',
+    shadowRadius: 14,
     shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 12,
-    elevation: 3,
+    elevation: 4,
   },
   bg: { flex: 1 },
   bgImage: { opacity: 0.55 },
   glass: {
     flex: 1,
     padding: 10,
-    backgroundColor: 'rgba(12,16,18,0.55)',
+    backgroundColor: 'rgba(8,12,20,0.55)',
     justifyContent: 'space-between',
+    gap: 4,
   },
-  label: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.6 },
-  identity: { fontSize: 11, lineHeight: 15, color: palette.white, fontWeight: '600' },
-  micro: { fontSize: 9, color: 'rgba(255,255,255,0.75)', fontWeight: '600' },
+  label: { fontSize: 11, fontWeight: '900', letterSpacing: 0.8, textTransform: 'uppercase' },
+  goal: { fontSize: 12, fontWeight: '700', color: palette.white },
+  affirm: { fontSize: 11, lineHeight: 15, color: 'rgba(255,255,255,0.92)', fontWeight: '600' },
+  micro: { fontSize: 9, color: 'rgba(255,255,255,0.7)', fontWeight: '600' },
+  hint: { fontSize: 9, color: 'rgba(255,255,255,0.45)', marginTop: 2 },
 });

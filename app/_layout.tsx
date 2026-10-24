@@ -89,7 +89,7 @@ function RootLayoutNav() {
           }}
         />
         <Stack.Screen
-          name="manifest"
+          name="manifestation"
           options={{
             headerShown: false,
           }}

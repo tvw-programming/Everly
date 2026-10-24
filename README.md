@@ -40,7 +40,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 18765 --reload
 ## Project layout
 
 ```
-app/                      Expo Router (index, add-reminder, manifest)
+app/                      Expo Router (index, add-reminder, manifestation)
 components/               Board, companion, manifestation UI
 lib/companion/            Mood, rituals, hype, follow-up, sync
 lib/manifestation/        Pillars, storage, dual-stem audio
