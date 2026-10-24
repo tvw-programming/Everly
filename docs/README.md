@@ -16,5 +16,6 @@ Product roadmaps (intent vs implementation):
 
 - [`../plans/companion_relational_engine.md`](../plans/companion_relational_engine.md)
 - [`../plans/manifestation_command_deck.md`](../plans/manifestation_command_deck.md)
+- [`../plans/ideas_voice_vault.md`](../plans/ideas_voice_vault.md)
 
 Backend quick notes: [`../backend/README.md`](../backend/README.md)

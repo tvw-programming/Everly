@@ -46,6 +46,7 @@ If the API is unreachable, `lib/api.ts` falls back to `lib/parser.ts` (on-device
 | `app/_layout.tsx` | — | Fonts, splash, audio mode, notification listeners, Stack |
 | `app/index.tsx` | `/` | Zero-scroll Home: quadrants, companion, mic FAB, dock |
 | `app/add-reminder.tsx` | `/add-reminder` | Manual reminder create (modal on native) |
+| `app/ideas.tsx` | `/ideas` | Voice-first Ideas vault |
 | `app/manifestation.tsx` | `/manifestation` | Manifestation Command Deck |
 | `app/+html.tsx` | web only | HTML shell / CSS reset for web |
 | `app/+not-found.tsx` | * | 404 |
@@ -67,6 +68,7 @@ components/                  Presentational + interactive UI
   ThemePicker.tsx            Light / Dark / 3D Glass selector
   ThemedCanvas.tsx           Gradient / orb canvas for themes
   manifestation/             PillarCard, RealityLock, VoiceEchoSheet
+  ideas/                     IdeaCard, filters, mic FAB, detail, capture
 constants/Colors.ts          Legacy static palette + category accents
 lib/
   types.ts                   ReminderTask domain model
@@ -78,6 +80,7 @@ lib/
   audio.ts / sounds.ts       Reminder MP3 playback helpers
   companion/                 Mood, rituals, hype, memories, sync
   manifestation/             Deck state, seeds, dual-stem audio
+  ideas/                     Idea vault types, organize, storage, seeds
   theme/                     Theme tokens, persistence, context
 backend/app/                 FastAPI voice parse service
 assets/sounds/               Demo MP3s

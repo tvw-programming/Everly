@@ -10,6 +10,7 @@ import { useColorScheme } from '@/components/useColorScheme';
 import { palette } from '@/constants/Colors';
 import { configureAudioMode } from '@/lib/audio';
 import { attachNotificationListeners } from '@/lib/notifications';
+import { ThemeProvider as EverlyThemeProvider } from '@/lib/theme/ThemeContext';
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -58,7 +59,11 @@ export default function RootLayout() {
     return null;
   }
 
-  return <RootLayoutNav />;
+  return (
+    <EverlyThemeProvider>
+      <RootLayoutNav />
+    </EverlyThemeProvider>
+  );
 }
 
 function RootLayoutNav() {
@@ -86,6 +91,12 @@ function RootLayoutNav() {
           options={{
             presentation: Platform.OS === 'web' ? 'card' : 'modal',
             title: 'Create New Reminder',
+          }}
+        />
+        <Stack.Screen
+          name="ideas"
+          options={{
+            headerShown: false,
           }}
         />
         <Stack.Screen

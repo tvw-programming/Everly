@@ -95,7 +95,27 @@ Bundled WAVs: `assets/manifestation/tones/hz{40,528,639,888}.wav`. Web uses WebA
 
 ---
 
-## 5. Theming
+## 5. Ideas Tab (Voice-First Vault)
+
+| Feature | Status | Notes |
+| --- | --- | --- |
+| Ideas dashboard + All/Personal/Social/Pro filters | Shipped | `app/ideas.tsx` |
+| Weekly insight line | Shipped | `weekInsight()` |
+| Idea cards + detail sheet | Shipped | Status lifecycle, tags, companion |
+| Mic FAB state machine | Shipped | idle / listening / processing / saved |
+| Multi-intent organize | Shipped | `lib/ideas/organize.ts` |
+| Content hooks / platforms | Shipped | Social ideas |
+| Trade research safeguard | Shipped | No impulse trade action |
+| Convert → reminder | Shipped | Links reminder id on idea |
+| Pin → manifestation pillar | Shipped | Vision prompt patch |
+| Native audio waveform / speeds | Planned | Web uses TTS preview |
+| Routine Experiment Builder UI | Partial | Detected + companion prompt |
+| Weekly Idea Review | Planned | |
+| NL search + privacy locks | Planned | |
+
+---
+
+## 6. Theming
 
 | Feature | Status | Notes |
 | --- | --- | --- |
@@ -109,7 +129,7 @@ See [THEMING.md](./THEMING.md).
 
 ---
 
-## 6. Platform matrix
+## 7. Platform matrix
 
 | Capability | iOS / Android (Expo Go) | Web preview |
 | --- | --- | --- |

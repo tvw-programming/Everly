@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { themes } from '@/lib/theme/themes';
@@ -86,8 +86,10 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   glassWrap: {
-    // @ts-expect-error web backdrop
-    backdropFilter: 'blur(18px)',
+    ...Platform.select({
+      web: { backdropFilter: 'blur(18px)' } as object,
+      default: {},
+    }),
   },
   label: {
     fontSize: 10,
@@ -117,9 +119,13 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
   },
   swatchGlass: {
-    // @ts-expect-error web gradient swatch
-    backgroundImage:
-      'linear-gradient(135deg, #22D3EE 0%, #F59E0B 50%, #10B981 100%)',
+    ...Platform.select({
+      web: {
+        backgroundImage:
+          'linear-gradient(135deg, #22D3EE 0%, #F59E0B 50%, #10B981 100%)',
+      } as object,
+      default: { backgroundColor: '#22D3EE' },
+    }),
   },
   chipText: { fontSize: 11, fontWeight: '800' },
 });

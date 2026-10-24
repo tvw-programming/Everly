@@ -353,6 +353,12 @@ export default function RemindersDashboard() {
             <Text style={[styles.navIcon, styles.navActive]}>⌂</Text>
             <Text style={[styles.navLabel, styles.navActive]}>Home</Text>
           </View>
+          <Link href="/ideas" asChild>
+            <Pressable style={styles.navSide}>
+              <Text style={styles.navIcon}>💡</Text>
+              <Text style={styles.navLabel}>Ideas</Text>
+            </Pressable>
+          </Link>
           <Link href="/add-reminder" asChild>
             <Pressable style={styles.fab} accessibilityLabel="Add reminder manually">
               <Text style={styles.fabPlus}>+</Text>
@@ -408,14 +414,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
-    paddingHorizontal: 36,
+    paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 14,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: palette.border,
     backgroundColor: palette.white,
   },
-  navSide: { width: 72, alignItems: 'center', gap: 2, paddingBottom: 4 },
+  navSide: { width: 64, alignItems: 'center', gap: 2, paddingBottom: 4 },
   navIcon: { fontSize: 18, color: palette.muted },
   navLabel: { fontSize: 11, fontWeight: '600', color: palette.muted },
   navActive: { color: palette.accent },

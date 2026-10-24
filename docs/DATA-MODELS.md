@@ -128,6 +128,41 @@ type ManifestDeckState = {
 
 ---
 
+## IdeaNote
+
+```ts
+type IdeaNote = {
+  id: string;
+  category: 'personal' | 'social' | 'professional';
+  kind: IdeaKind;           // content_idea | architecture | trade_research | …
+  title: string;
+  summary: string;
+  transcript: string;
+  bullets: string[];
+  actions: string[];
+  tags: string[];
+  status: IdeaStatus;       // captured → … → archived
+  priority: 'low' | 'medium' | 'high';
+  createdAt: string;
+  updatedAt: string;
+  durationSec: number;
+  audioUri?: string;
+  contentHook?: string;
+  contentFormats?: string[];
+  platforms?: string[];
+  tradeSafeguard?: boolean;
+  suggestedReminderAt?: string | null;
+  linkedReminderIds?: string[];
+  linkedManifestPillar?: ManifestPillarId;
+  companionLine?: string;
+};
+```
+
+**Storage:** `@ideas/vault/v1`  
+**Organize:** `lib/ideas/organize.ts` · **CRUD:** `lib/ideas/storage.ts`
+
+---
+
 ## Theme
 
 ```ts
@@ -179,6 +214,7 @@ Persisted id only (`@everly/theme/v1`); tokens are code-defined.
 | `@companion/hype-delivered/v1` | companion engine | `string[]` of `taskId:day` |
 | `@companion/completions-hour/v1` | companion engine | `{ [YYYY-MM-DDTHH]: number }` |
 | `@manifestation/deck/v1` | manifestation storage | `ManifestDeckState` |
+| `@ideas/vault/v1` | ideas storage | `IdeaNote[]` |
 | `@everly/theme/v1` | theme storage | `ThemeId` string |
 
 ---

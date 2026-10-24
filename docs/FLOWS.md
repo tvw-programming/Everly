@@ -161,6 +161,24 @@ flowchart LR
 
 ---
 
+## Ideas vault capture
+
+```mermaid
+flowchart TD
+  M[Mic FAB] --> C[Capture sheet]
+  C --> O[organizeTranscript]
+  O --> S[Split multi-intent chunks]
+  S --> CAT[Detect category + kind + tags]
+  CAT --> UP[upsertIdeas]
+  UP --> CARD[Idea cards]
+  CARD --> D[Detail sheet]
+  D --> R[Convert to reminder]
+  D --> MAN[Pin manifestation visionPrompt]
+  D --> ARC[Archive / Delete]
+```
+
+---
+
 ## Storage write paths
 
 | Action | Module | Key |

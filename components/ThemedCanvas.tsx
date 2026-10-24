@@ -64,7 +64,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(16,185,129,0.38)',
   },
   glassSheen: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(255,255,255,0.04)',
   },
 });

@@ -3,6 +3,7 @@
 Zero-scroll executive companion + **Manifestation Command Deck** for high-velocity solo operators.
 
 - **Home:** Personal · Social · Professional reminder board with a warm AI companion  
+- **Ideas:** Voice-first second brain — capture, organize, execute across domains  
 - **Manifest:** Personal · Social · Economical · Professional identity pillars (audio, Reality Lock, Vision prompts)  
 - **Voice router:** Optional FastAPI multi-intent parse (offline heuristic fallback)
 
@@ -54,9 +55,10 @@ Use **Expo Go** for notifications, MP3, Voice Echo recording, and haptics. Web i
 ## Project layout
 
 ```
-app/                      Expo Router (index, add-reminder, manifestation)
-components/               Board, companion, manifestation, theme UI
+app/                      Expo Router (index, ideas, add-reminder, manifestation)
+components/               Board, companion, ideas, manifestation, theme UI
 lib/companion/            Mood, rituals, hype, follow-up, sync
+lib/ideas/                Voice ideas vault (organize, storage, lifecycle)
 lib/manifestation/        Pillars, storage, dual-stem audio
 lib/theme/                Light / Dark / Glass tokens + persistence
 docs/                     Developer technical documentation

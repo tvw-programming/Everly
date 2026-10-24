@@ -219,9 +219,10 @@ export default function ManifestationScreen() {
               <Text style={styles.navLabel}>Home</Text>
             </Pressable>
           </Link>
-          <Link href="/add-reminder" asChild>
-            <Pressable style={styles.fab}>
-              <Text style={styles.fabPlus}>+</Text>
+          <Link href="/ideas" asChild>
+            <Pressable style={styles.navSide}>
+              <Text style={styles.navIcon}>💡</Text>
+              <Text style={styles.navLabel}>Ideas</Text>
             </Pressable>
           </Link>
           <View style={styles.navSide}>
@@ -373,27 +374,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
-    paddingHorizontal: 36,
+    paddingHorizontal: 28,
     paddingTop: 6,
     paddingBottom: 14,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: palette.border,
     backgroundColor: palette.white,
   },
-  navSide: { width: 72, alignItems: 'center', gap: 2, paddingBottom: 4 },
+  navSide: { width: 80, alignItems: 'center', gap: 2, paddingBottom: 4 },
   navIcon: { fontSize: 18, color: palette.muted },
   navLabel: { fontSize: 11, fontWeight: '600', color: palette.muted },
   navActive: { color: palette.accent },
-  fab: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: palette.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: -18,
-  },
-  fabPlus: { color: palette.white, fontSize: 28, marginTop: -2 },
   visionSheet: {
     position: 'absolute',
     left: 0,
