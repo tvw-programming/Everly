@@ -1,70 +1,46 @@
-import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { palette } from '@/constants/Colors';
-import { formatNextFire, formatScheduleSummary } from '@/lib/schedule';
-import { getBundledSoundName } from '@/lib/sounds';
-import type { Reminder, ReminderCategory } from '@/lib/types';
-import { CATEGORY_LABELS } from '@/lib/types';
-
-const ACCENT: Record<ReminderCategory, string> = {
-  health: palette.health,
-  daily_routine: palette.daily,
-  communication: palette.communication,
-};
+import { categoryAccent, palette } from '@/constants/Colors';
+import { formatTimeDisplay } from '@/lib/schedule';
+import type { Reminder } from '@/lib/types';
 
 type Props = {
   reminder: Reminder;
-  onToggle: (id: string, enabled: boolean) => void;
-  onDelete: (id: string) => void;
+  onToggleComplete: (id: string, completed: boolean) => void;
 };
 
-export function ReminderCard({ reminder, onToggle, onDelete }: Props) {
-  const accent = ACCENT[reminder.category];
-  const soundLabel =
-    getBundledSoundName(reminder.sound.assetUri) ?? reminder.sound.assetName;
+export function ReminderCard({ reminder, onToggleComplete }: Props) {
+  const accent = categoryAccent[reminder.category];
+  const done = Boolean(reminder.completed);
 
   return (
-    <View style={[styles.card, !reminder.enabled && styles.cardDisabled]}>
-      <View style={[styles.stripe, { backgroundColor: accent }]} />
-      <View style={styles.body}>
-        <View style={styles.topRow}>
-          <View style={[styles.chip, { backgroundColor: `${accent}18` }]}>
-            <Text style={[styles.chipText, { color: accent }]}>
-              {CATEGORY_LABELS[reminder.category]}
-            </Text>
-          </View>
-          <Switch
-            value={reminder.enabled}
-            onValueChange={(v) => onToggle(reminder.id, v)}
-            trackColor={{ false: palette.border, true: `${accent}88` }}
-            thumbColor={reminder.enabled ? accent : '#f4f4f4'}
-          />
-        </View>
+    <View
+      style={[
+        styles.card,
+        { borderLeftColor: accent },
+        done && styles.cardDone,
+      ]}
+    >
+      <Pressable
+        onPress={() => onToggleComplete(reminder.id, !done)}
+        style={[styles.check, done && { backgroundColor: accent, borderColor: accent }]}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: done }}
+        accessibilityLabel={done ? 'Mark incomplete' : 'Mark complete'}
+      >
+        {done ? <Text style={styles.checkMark}>✓</Text> : null}
+      </Pressable>
 
-        <Text style={styles.title}>{reminder.title}</Text>
+      <View style={styles.body}>
+        <Text style={[styles.time, done && styles.struck]}>{formatTimeDisplay(reminder.schedule.time)}</Text>
+        <Text style={[styles.title, done && styles.struck]} numberOfLines={1}>
+          {reminder.title}
+        </Text>
         {reminder.notes ? (
-          <Text style={styles.notes} numberOfLines={2}>
+          <Text style={styles.notes} numberOfLines={1}>
             {reminder.notes}
           </Text>
         ) : null}
-
-        <View style={styles.meta}>
-          <Text style={styles.metaText}>{formatNextFire(reminder)}</Text>
-          <Text style={styles.metaDot}>·</Text>
-          <Text style={styles.metaMuted}>{formatScheduleSummary(reminder.schedule)}</Text>
-        </View>
-
-        <View style={styles.footer}>
-          <Text style={styles.sound}>♪ {soundLabel}</Text>
-          <Pressable
-            onPress={() => onDelete(reminder.id)}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel={`Delete ${reminder.title}`}
-          >
-            <Text style={styles.delete}>Delete</Text>
-          </Pressable>
-        </View>
       </View>
     </View>
   );
@@ -73,82 +49,64 @@ export function ReminderCard({ reminder, onToggle, onDelete }: Props) {
 const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     backgroundColor: palette.card,
-    borderRadius: 16,
-    borderWidth: 1,
+    borderRadius: 18,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderLeftWidth: 4,
+    // Soft shadow like the mockup cards
+    shadowColor: '#1C1C1E',
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: palette.border,
-    overflow: 'hidden',
-    marginHorizontal: 20,
-    marginBottom: 12,
   },
-  cardDisabled: {
-    opacity: 0.62,
+  cardDone: {
+    opacity: 0.55,
+    backgroundColor: palette.soft,
   },
-  stripe: {
-    width: 5,
+  check: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: palette.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: palette.white,
+  },
+  checkMark: {
+    color: palette.white,
+    fontSize: 14,
+    fontWeight: '800',
+    marginTop: -1,
   },
   body: {
     flex: 1,
-    padding: 14,
-    gap: 6,
+    minWidth: 0,
+    gap: 2,
   },
-  topRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 2,
-  },
-  chip: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  chipText: {
-    fontSize: 12,
-    fontWeight: '700',
+  time: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: palette.ink,
+    letterSpacing: -0.3,
   },
   title: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '600',
     color: palette.ink,
   },
   notes: {
-    fontSize: 14,
-    color: palette.muted,
-    lineHeight: 20,
-  },
-  meta: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 4,
-  },
-  metaText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: palette.tealDark,
-  },
-  metaDot: {
+    fontSize: 12,
     color: palette.muted,
   },
-  metaMuted: {
-    fontSize: 13,
+  struck: {
+    textDecorationLine: 'line-through',
     color: palette.muted,
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  sound: {
-    fontSize: 13,
-    color: palette.muted,
-  },
-  delete: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: palette.danger,
   },
 });

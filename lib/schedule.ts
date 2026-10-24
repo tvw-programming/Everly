@@ -49,6 +49,48 @@ export function formatTime12h(time: string): string {
   return `${h12}:${String(minutes).padStart(2, '0')} ${period}`;
 }
 
+/** Mockup-style time: "09.00 am" */
+export function formatTimeDisplay(time: string): string {
+  const { hours, minutes } = parseTime(time);
+  const period = hours >= 12 ? 'pm' : 'am';
+  const h12 = hours % 12 || 12;
+  return `${String(h12).padStart(2, '0')}.${String(minutes).padStart(2, '0')} ${period}`;
+}
+
+export function formatHeaderDate(date = new Date()): string {
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+  return `${months[date.getMonth()]}, ${date.getDate()} ${date.getFullYear()}`;
+}
+
+export function isScheduledToday(schedule: ReminderSchedule, from = new Date()): boolean {
+  const day = from.getDay();
+  if (schedule.daysOfWeek.length > 0) {
+    return schedule.daysOfWeek.includes(day);
+  }
+  if (!schedule.date) return false;
+  const y = from.getFullYear();
+  const m = String(from.getMonth() + 1).padStart(2, '0');
+  const d = String(from.getDate()).padStart(2, '0');
+  return schedule.date === `${y}-${m}-${d}`;
+}
+
+export function sortByTime(a: Reminder, b: Reminder): number {
+  return a.schedule.time.localeCompare(b.schedule.time);
+}
+
 export function formatNextFire(reminder: Reminder): string {
   if (!reminder.enabled) return 'Paused';
   const next = getNextFireDate(reminder.schedule);

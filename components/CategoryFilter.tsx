@@ -1,116 +1,78 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { palette } from '@/constants/Colors';
+import { categoryAccent, palette } from '@/constants/Colors';
 import type { CategoryFilter as Filter, ReminderCategory } from '@/lib/types';
 import { CATEGORY_LABELS } from '@/lib/types';
 
-const FILTERS: { id: Filter; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'health', label: CATEGORY_LABELS.health },
-  { id: 'daily_routine', label: CATEGORY_LABELS.daily_routine },
-  { id: 'communication', label: CATEGORY_LABELS.communication },
-];
-
-const ACCENT: Record<ReminderCategory, string> = {
-  health: palette.health,
-  daily_routine: palette.daily,
-  communication: palette.communication,
-};
+const TABS: ReminderCategory[] = ['health', 'daily_routine', 'communication'];
 
 type Props = {
   value: Filter;
   onChange: (value: Filter) => void;
-  counts: Record<Filter, number>;
+  counts: Record<ReminderCategory, number>;
 };
 
 export function CategoryFilter({ value, onChange, counts }: Props) {
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      style={styles.scroll}
-      contentContainerStyle={styles.row}
-    >
-      {FILTERS.map((filter) => {
-        const selected = value === filter.id;
-        const accent =
-          filter.id === 'all' ? palette.teal : ACCENT[filter.id as ReminderCategory];
+    <View style={styles.grid}>
+      {TABS.map((id) => {
+        const selected = value === id;
+        const accent = categoryAccent[id];
         return (
           <Pressable
-            key={filter.id}
-            onPress={() => onChange(filter.id)}
+            key={id}
+            onPress={() => onChange(id)}
             style={[
-              styles.chip,
+              styles.tab,
               selected && { backgroundColor: accent, borderColor: accent },
             ]}
             accessibilityRole="button"
             accessibilityState={{ selected }}
           >
-            <Text style={[styles.label, selected && styles.labelSelected]}>
-              {filter.label}
+            <Text style={[styles.label, selected && styles.labelSelected]} numberOfLines={1}>
+              {CATEGORY_LABELS[id]}
             </Text>
-            <View style={[styles.badge, selected && styles.badgeSelected]}>
-              <Text style={[styles.badgeText, selected && styles.badgeTextSelected]}>
-                {counts[filter.id]}
-              </Text>
-            </View>
+            <Text style={[styles.count, selected && styles.countSelected]}>{counts[id]}</Text>
           </Pressable>
         );
       })}
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: {
-    flexGrow: 0,
-    flexShrink: 0,
-    maxHeight: 56,
-  },
-  row: {
+  grid: {
+    flexDirection: 'row',
     gap: 8,
     paddingHorizontal: 20,
-    paddingVertical: 4,
-    alignItems: 'center',
+    marginBottom: 4,
   },
-  chip: {
-    flexDirection: 'row',
+  tab: {
+    flex: 1,
     alignItems: 'center',
-    alignSelf: 'center',
-    gap: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 999,
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: palette.border,
     backgroundColor: palette.white,
+    gap: 2,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '700',
     color: palette.ink,
+    textAlign: 'center',
   },
   labelSelected: {
     color: palette.white,
   },
-  badge: {
-    minWidth: 22,
-    height: 22,
-    borderRadius: 11,
-    paddingHorizontal: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: palette.mist,
-  },
-  badgeSelected: {
-    backgroundColor: 'rgba(255,255,255,0.22)',
-  },
-  badgeText: {
-    fontSize: 12,
-    fontWeight: '700',
+  count: {
+    fontSize: 11,
+    fontWeight: '600',
     color: palette.muted,
   },
-  badgeTextSelected: {
-    color: palette.white,
+  countSelected: {
+    color: 'rgba(255,255,255,0.85)',
   },
 });

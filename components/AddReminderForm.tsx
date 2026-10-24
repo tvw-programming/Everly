@@ -196,6 +196,7 @@ export function AddReminderForm({ onSave, onCancel }: Props) {
           : BUNDLED_SOUNDS.find((s) => s.key === draft.soundKey)?.name || 'Sound',
       },
       enabled: true,
+      completed: false,
     };
 
     setSaving(true);
@@ -506,7 +507,7 @@ export function AddReminderForm({ onSave, onCancel }: Props) {
             {saving ? (
               <ActivityIndicator color={palette.white} />
             ) : (
-              <Text style={styles.primaryBtnText}>Save reminder</Text>
+              <Text style={styles.primaryBtnText}>Create Reminder</Text>
             )}
           </Pressable>
         )}

@@ -23,11 +23,14 @@ export type Reminder = {
   schedule: ReminderSchedule;
   sound: ReminderSound;
   enabled: boolean;
+  /** Marked done for today via the left checkmark control */
+  completed?: boolean;
   createdAt: string;
   notificationId?: string;
 };
 
-export type CategoryFilter = 'all' | ReminderCategory;
+/** Dashboard tabs — three categories only (mockup-style grid) */
+export type CategoryFilter = ReminderCategory;
 
 export const CATEGORY_LABELS: Record<ReminderCategory, string> = {
   health: 'Health',

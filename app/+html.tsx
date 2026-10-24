@@ -25,7 +25,7 @@ html, body, #root {
 }
 body {
   overflow: hidden;
-  background-color: #F7FAF8;
+  background-color: #E8E8ED;
 }
 #root {
   display: flex;

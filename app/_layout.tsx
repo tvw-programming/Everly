@@ -27,7 +27,6 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (error) {
-      // Don't hard-crash the app if a font fails — continue without it
       setFontsReady(true);
       SplashScreen.hideAsync();
     }
@@ -40,7 +39,6 @@ export default function RootLayout() {
     }
   }, [loaded]);
 
-  // Fail-open if fonts stall (common on some web environments)
   useEffect(() => {
     const t = setTimeout(() => {
       setFontsReady(true);
@@ -74,21 +72,20 @@ function RootLayoutNav() {
           headerStyle: styles.header,
           headerTintColor: palette.ink,
           headerTitleStyle: styles.headerTitle,
+          headerShadowVisible: false,
         }}
       >
         <Stack.Screen
           name="index"
           options={{
-            title: 'Reminders',
-            headerShadowVisible: false,
+            headerShown: false,
           }}
         />
         <Stack.Screen
           name="add-reminder"
           options={{
             presentation: Platform.OS === 'web' ? 'card' : 'modal',
-            title: 'New reminder',
-            headerShadowVisible: false,
+            title: 'Create New Reminder',
           }}
         />
       </Stack>
@@ -100,13 +97,13 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     width: '100%',
-    backgroundColor: palette.paper,
+    backgroundColor: palette.white,
   },
   header: {
-    backgroundColor: palette.paper,
+    backgroundColor: palette.white,
   },
   headerTitle: {
     fontWeight: '700',
-    color: palette.ink,
+    color: palette.accent,
   },
 });
