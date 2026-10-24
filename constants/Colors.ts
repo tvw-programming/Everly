@@ -1,9 +1,9 @@
-/** High-fidelity reminder UI palette — white canvas, ink type, vibrant category accents (no purple). */
+/** Executive dashboard palette — white canvas, ink type, neon-adjacent category accents (no purple). */
 const ink = '#1C1C1E';
 const muted = '#8E8E93';
 const soft = '#F2F2F7';
 const white = '#FFFFFF';
-const accent = '#0EA5A8'; // primary actions / FAB
+const accent = '#0EA5A8';
 const accentDark = '#0B7C7E';
 
 export const palette = {
@@ -17,11 +17,13 @@ export const palette = {
   border: '#E5E5EA',
   card: white,
   shadow: 'rgba(28, 28, 30, 0.10)',
-  // Category accents (vibrant, distinct)
+  personal: '#FF5A5F',
+  social: '#2F80ED',
+  professional: '#F5A623',
+  // legacy aliases
   health: '#FF5A5F',
-  daily: '#FF9F0A',
+  daily: '#F5A623',
   communication: '#2F80ED',
-  // Back-compat aliases used by older styles
   teal: accent,
   tealDark: accentDark,
   mist: soft,
@@ -29,9 +31,9 @@ export const palette = {
 };
 
 export const categoryAccent = {
-  health: palette.health,
-  daily_routine: palette.daily,
-  communication: palette.communication,
+  personal: palette.personal,
+  social: palette.social,
+  professional: palette.professional,
 } as const;
 
 export default {

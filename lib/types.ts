@@ -1,47 +1,95 @@
-export type ReminderCategory = 'health' | 'daily_routine' | 'communication';
+export type TaskCategory = 'personal' | 'social' | 'professional';
+export type TaskPriority = 'p1' | 'p2' | 'p3';
+
+export type SubCategory =
+  | 'hydration'
+  | 'medication'
+  | 'exercise'
+  | 'manifestation'
+  | 'content_post'
+  | 'networking'
+  | 'idea_capture'
+  | 'trading'
+  | 'dev_sprint'
+  | 'client_ops'
+  | 'general';
 
 export type SoundMode = 'mp3' | 'tts';
 
 export type ReminderSchedule = {
   time: string; // HH:mm
-  daysOfWeek: number[]; // 0–6 (Sun–Sat); empty + date = one-shot
-  date?: string; // YYYY-MM-DD for one-shot
+  daysOfWeek: number[]; // 0–6; empty + date = one-shot
+  date?: string;
 };
 
 export type ReminderSound = {
   mode: SoundMode;
-  /** Bundled asset key (e.g. "chime") or a file:// URI from the device */
   assetUri: string;
   assetName: string;
 };
 
-export type Reminder = {
+/** Primary task model — aligns with FastAPI TaskItemBase */
+export type ReminderTask = {
   id: string;
   title: string;
   notes?: string;
-  category: ReminderCategory;
+  category: TaskCategory;
+  subCategory: SubCategory;
+  priority: TaskPriority;
   schedule: ReminderSchedule;
+  dueAt: string | null;
+  contextTrigger?: string;
   sound: ReminderSound;
   enabled: boolean;
-  /** Marked done for today via the left checkmark control */
-  completed?: boolean;
+  completed: boolean;
   createdAt: string;
   notificationId?: string;
 };
 
-/** Dashboard tabs — three categories only (mockup-style grid) */
-export type CategoryFilter = ReminderCategory;
+/** @deprecated alias kept for gradual migration */
+export type Reminder = ReminderTask;
+export type ReminderCategory = TaskCategory;
+export type CategoryFilter = TaskCategory;
 
-export const CATEGORY_LABELS: Record<ReminderCategory, string> = {
-  health: 'Health',
-  daily_routine: 'Daily routine',
-  communication: 'Communication',
+export type CategorySummary = {
+  category: TaskCategory;
+  accentColor: string;
+  activeCount: number;
+  completedCount: number;
+  topTasks: ReminderTask[];
+  overflowCount: number;
 };
 
-export const CATEGORY_DESCRIPTIONS: Record<ReminderCategory, string> = {
-  health: 'Medications, hydration, appointments',
-  daily_routine: 'Wake-up, meals, chores, habits',
-  communication: 'Calls, messages, check-ins',
+export const CATEGORY_LABELS: Record<TaskCategory, string> = {
+  personal: 'Personal',
+  social: 'Social',
+  professional: 'Professional',
+};
+
+export const CATEGORY_DESCRIPTIONS: Record<TaskCategory, string> = {
+  personal: 'Health, hydration, manifestation',
+  social: 'Outreach, publishing, ideas',
+  professional: 'Trading, engineering, business',
+};
+
+export const SUBCATEGORY_LABELS: Record<SubCategory, string> = {
+  hydration: 'Hydration',
+  medication: 'Medication',
+  exercise: 'Exercise',
+  manifestation: 'Manifestation',
+  content_post: 'Content post',
+  networking: 'Networking',
+  idea_capture: 'Idea capture',
+  trading: 'Trading',
+  dev_sprint: 'Dev sprint',
+  client_ops: 'Client ops',
+  general: 'General',
 };
 
 export const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+
+export const PRIORITY_WEIGHT: Record<TaskPriority, number> = {
+  p1: 0,
+  p2: 1,
+  p3: 2,
+};

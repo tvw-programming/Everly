@@ -1,5 +1,5 @@
-import type { Reminder, ReminderSchedule } from './types';
-import { DAY_LABELS } from './types';
+import type { ReminderSchedule, ReminderTask } from './types';
+import { DAY_LABELS, PRIORITY_WEIGHT } from './types';
 
 function parseTime(time: string): { hours: number; minutes: number } {
   const [h, m] = time.split(':').map((n) => Number(n));
@@ -87,11 +87,18 @@ export function isScheduledToday(schedule: ReminderSchedule, from = new Date()):
   return schedule.date === `${y}-${m}-${d}`;
 }
 
-export function sortByTime(a: Reminder, b: Reminder): number {
+export function sortByTime(a: ReminderTask, b: ReminderTask): number {
   return a.schedule.time.localeCompare(b.schedule.time);
 }
 
-export function formatNextFire(reminder: Reminder): string {
+/** Highest leverage first (p1 → p2 → p3), then soonest time */
+export function sortByPriority(a: ReminderTask, b: ReminderTask): number {
+  const pw = PRIORITY_WEIGHT[a.priority] - PRIORITY_WEIGHT[b.priority];
+  if (pw !== 0) return pw;
+  return sortByTime(a, b);
+}
+
+export function formatNextFire(reminder: ReminderTask): string {
   if (!reminder.enabled) return 'Paused';
   const next = getNextFireDate(reminder.schedule);
   if (!next) return 'No upcoming time';

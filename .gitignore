@@ -45,3 +45,9 @@ yarn-error.*
 *-after-fix.png
 dashboard-with-reminder.png
 add-form-after-fix.png
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+backend/.venv/

@@ -1,15 +1,15 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { categoryAccent, palette } from '@/constants/Colors';
-import type { CategoryFilter as Filter, ReminderCategory } from '@/lib/types';
+import type { CategoryFilter as Filter, TaskCategory } from '@/lib/types';
 import { CATEGORY_LABELS } from '@/lib/types';
 
-const TABS: ReminderCategory[] = ['health', 'daily_routine', 'communication'];
+const TABS: TaskCategory[] = ['personal', 'social', 'professional'];
 
 type Props = {
   value: Filter;
   onChange: (value: Filter) => void;
-  counts: Record<ReminderCategory, number>;
+  counts: Record<TaskCategory, number>;
 };
 
 export function CategoryFilter({ value, onChange, counts }: Props) {
@@ -22,10 +22,7 @@ export function CategoryFilter({ value, onChange, counts }: Props) {
           <Pressable
             key={id}
             onPress={() => onChange(id)}
-            style={[
-              styles.tab,
-              selected && { backgroundColor: accent, borderColor: accent },
-            ]}
+            style={[styles.tab, selected && { backgroundColor: accent, borderColor: accent }]}
             accessibilityRole="button"
             accessibilityState={{ selected }}
           >
@@ -64,15 +61,7 @@ const styles = StyleSheet.create({
     color: palette.ink,
     textAlign: 'center',
   },
-  labelSelected: {
-    color: palette.white,
-  },
-  count: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: palette.muted,
-  },
-  countSelected: {
-    color: 'rgba(255,255,255,0.85)',
-  },
+  labelSelected: { color: palette.white },
+  count: { fontSize: 11, fontWeight: '600', color: palette.muted },
+  countSelected: { color: 'rgba(255,255,255,0.85)' },
 });

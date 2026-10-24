@@ -1,47 +1,53 @@
-# Reminders
+# Everly
 
-Expo React Native app for local reminders in three categories:
+Zero-scroll executive companion for high-velocity solo operators.
 
-- **Health** — medications, hydration, appointments
-- **Daily routine** — wake-up, meals, chores, habits
-- **Communication** — calls, messages, check-ins
+Three buckets — **Personal**, **Social**, **Professional** — with voice-driven capture, local MP3 reminders, and a warm companion presence (avatar + skippable inbound voice notes).
 
-Step 1 ships a **reminders dashboard** and a multi-step **add** form (top-right **+**). When a reminder fires on a device, it plays a **local MP3** (bundled demo tones or a file you pick). Text-to-speech is reserved for a later slice (`sound.mode: 'tts'`).
-
-## Run locally
+## Quick start (mobile / Expo)
 
 ```bash
 npm install
-npm start
+npm start          # port 19006
+npm run web        # UI preview in browser
 ```
 
-Then press `i` / `a` for iOS Simulator / Android emulator, or scan the QR code with **Expo Go**.
+Use Expo Go on a device for notifications + timed MP3 playback. Web is for layout and voice-routing preview (type/paste thoughts).
 
-### Web UI preview
+## Voice router API (optional)
 
 ```bash
-npm run web
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --host 0.0.0.0 --port 18765 --reload
 ```
 
-Opens on port **19006**. Web is for browsing the dashboard and form only — **native notifications and timed MP3 playback require a device or simulator**.
+- Docs: http://127.0.0.1:18765/docs  
+- `POST /v1/voice/parse` — transcript → structured tasks  
+- App falls back to an on-device heuristic parser if the API is down  
+- Override URL with `EXPO_PUBLIC_API_URL`
 
-## How it works
+## What’s in this slice
 
-1. Dashboard lists reminders, filterable by category.
-2. **+** opens a 4-step form: Basics → When → Sound → Review.
-3. On save, the reminder is stored in AsyncStorage and a local notification is scheduled for the next matching time.
-4. When the notification is received, `expo-av` plays the selected MP3 (`playsInSilentModeIOS: true`).
+- Viewport-locked dashboard with three category quadrants (top 2 tasks + `+N more` sheet)
+- Mic / Second Brain capture → multi-intent parse → route into buckets
+- Manual multi-step add form (`+`)
+- Ambient companion avatar (idle / listening / reacting / speaking)
+- Morning & evening warm inbound voice notes (skippable, ≤12s via `expo-speech`)
+- Local notification + MP3 on device builds
 
 ## Project layout
 
 ```
-app/           # Expo Router screens (dashboard + add modal)
-components/    # UI pieces
-lib/           # types, storage, schedule, notifications, audio
-assets/sounds/ # demo MP3s
+app/                 Expo Router screens
+components/          Dashboard, avatar, voice, forms
+lib/                 Types, storage, parser, companion engine
+backend/             FastAPI voice parse service
+assets/sounds/       Demo MP3s
 ```
 
-## Permissions
+## Next (planned)
 
-- **Notifications** — required for timed playback on device
-- **Document picker** — optional, for custom MP3 files
+Adaptive mood, pre-event hype interstitial, relational follow-through, decompression room, shared Sync Score — see companion plan in the agent artifacts.

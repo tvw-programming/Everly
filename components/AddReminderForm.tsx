@@ -179,10 +179,20 @@ export function AddReminderForm({ onSave, onCancel }: Props) {
             : [...draft.daysOfWeek].sort((a, b) => a - b);
 
     const usingCustom = Boolean(draft.customSoundUri);
+    const defaultSub =
+      draft.category === 'personal'
+        ? 'general'
+        : draft.category === 'social'
+          ? 'idea_capture'
+          : 'dev_sprint';
+
     const payload: Omit<Reminder, 'id' | 'createdAt' | 'notificationId'> = {
       title: draft.title.trim(),
       notes: draft.notes.trim() || undefined,
       category: draft.category,
+      subCategory: defaultSub,
+      priority: 'p3',
+      dueAt: null,
       schedule: {
         time: draft.time,
         daysOfWeek,
