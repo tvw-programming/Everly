@@ -115,7 +115,22 @@ Bundled WAVs: `assets/manifestation/tones/hz{40,528,639,888}.wav`. Web uses WebA
 
 ---
 
-## 6. Theming
+## 6. Personal Android Alarms
+
+| Feature | Status | Notes |
+| --- | --- | --- |
+| Alarms tab + cards (enable / edit / delete / test) | Shipped | `app/(tabs)/alarms.tsx` |
+| Add/Edit 12h form (category, repeat, audio, snooze) | Shipped | `app/alarm-edit.tsx` |
+| Reliability checklist (exact alarm + battery) | Shipped | `app/alarm-reliability.tsx` |
+| Active alarm Stop / Snooze / Done UI | Shipped | `app/alarm-active.tsx` |
+| Thin `everly-alarm` native module (AlarmManager + FGS) | Shipped | `modules/everly-alarm` — needs custom APK |
+| Expo Go / web fallback via `expo-notifications` | Shipped | UI works; no closed-app full-song |
+
+Plan: [`plans/android_alarm_reminder_native.md`](../plans/android_alarm_reminder_native.md).
+
+---
+
+## 7. Theming
 
 | Feature | Status | Notes |
 | --- | --- | --- |
@@ -129,15 +144,16 @@ See [THEMING.md](./THEMING.md).
 
 ---
 
-## 7. Platform matrix
+## 8. Platform matrix
 
-| Capability | iOS / Android (Expo Go) | Web preview |
-| --- | --- | --- |
-| Board + Manifest UI | Yes | Yes |
-| Voice parse (API or local) | Yes | Yes (paste) |
-| Local notifications | Yes | Limited / no-op warnings |
-| MP3 playback | Yes | Partial |
-| Voice Echo recording | Yes | Blocked with message |
-| Haptics | Yes | No |
-| Solfeggio WAV stems | Yes | WebAudio oscillator fallback |
-| CSS glass gradients | N/A | Best on web |
+| Capability | iOS / Android (Expo Go) | Sideloaded APK | Web preview |
+| --- | --- | --- | --- |
+| Board + Manifest UI | Yes | Yes | Yes |
+| Voice parse (API or local) | Yes | Yes | Yes (paste) |
+| Local notifications | Yes | Yes | Limited / no-op warnings |
+| Exact alarms + closed-app music | Fallback only | Yes (`everly-alarm`) | No |
+| MP3 playback | Yes | Yes | Partial |
+| Voice Echo recording | Yes | Yes | Blocked with message |
+| Haptics | Yes | Yes | No |
+| Solfeggio WAV stems | Yes | Yes | WebAudio oscillator fallback |
+| CSS glass gradients | N/A | N/A | Best on web |

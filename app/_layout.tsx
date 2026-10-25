@@ -88,6 +88,16 @@ function RootLayoutNav() {
               headerShadowVisible: false,
             }}
           />
+          <Stack.Screen
+            name="alarm-edit"
+            options={{
+              presentation: Platform.OS === 'web' ? 'card' : 'modal',
+              title: 'Alarm',
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen name="alarm-reliability" options={{ headerShown: false }} />
+          <Stack.Screen name="alarm-active" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
           <Stack.Screen name="settings" options={{ headerShown: false }} />
         </Stack>
       </ThemeProvider>

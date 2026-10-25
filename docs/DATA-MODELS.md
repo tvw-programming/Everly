@@ -216,10 +216,48 @@ Persisted id only (`@everly/theme/v1`); tokens are code-defined.
 | `@manifestation/deck/v1` | manifestation storage | `ManifestDeckState` |
 | `@ideas/vault/v1` | ideas storage | `IdeaNote[]` |
 | `@everly/theme/v1` | theme storage | `ThemeId` string |
+| `@alarms/v1` | `lib/alarms/storage.ts` | `AlarmReminder[]` |
+
+---
+
+## AlarmReminder
+
+```ts
+type AlarmReminder = {
+  id: string;
+  title: string;
+  description?: string;
+  category: 'personal' | 'social' | 'professional' | 'financial';
+  hour12: number;          // 1–12
+  minute: number;          // 0–59
+  period: 'AM' | 'PM';
+  startDate: string;       // YYYY-MM-DD
+  endDate?: string | null;
+  frequency: 'once' | 'daily' | 'weekly';
+  weekdays: number[];      // 0=Sun … 6=Sat
+  enabled: boolean;
+  audio: {
+    source: 'default_alarm' | 'bundled' | 'local_file' | 'silent';
+    bundledKey?: string;
+    displayName: string;
+    managedPath?: string;  // durable copy under documentDirectory/alarms/
+    durationMs?: number;
+  };
+  playback: { mode: 'once' | 'loop_until_stopped'; maxRingMinutes: 1 | 5 | 10 | 30 };
+  vibration: boolean;
+  snoozeMinutes: 5 | 10 | 15 | 30;
+  createdAt: string;
+  updatedAt: string;
+  nextFireAt?: number | null;
+};
+```
+
+Native Android also mirrors enabled payloads in SharedPreferences (`everly_alarms`) for boot reschedule.
 
 ---
 
 ## ID generation
 
 - Reminders: `createId()` in `lib/schedule.ts`
+- Alarms: `createAlarmId()` in `lib/alarms/schedule.ts`
 - Companion memories: `uid(prefix)` in `lib/companion/engine.ts`

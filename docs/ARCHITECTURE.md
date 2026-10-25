@@ -44,14 +44,18 @@ If the API is unreachable, `lib/api.ts` falls back to `lib/parser.ts` (on-device
 | Route file | Path | Role |
 | --- | --- | --- |
 | `app/_layout.tsx` | — | Fonts, splash, audio mode, notification listeners, Stack |
-| `app/index.tsx` | `/` | Zero-scroll Home: quadrants, companion, mic FAB, dock |
+| `app/(tabs)/index.tsx` | `/` | Zero-scroll Home: quadrants, companion, mic FAB, dock |
+| `app/(tabs)/alarms.tsx` | `/alarms` | Personal alarm reminders (12h) |
+| `app/(tabs)/ideas.tsx` | `/ideas` | Voice-first Ideas vault |
+| `app/(tabs)/manifestation.tsx` | `/manifestation` | Manifestation Command Deck |
 | `app/add-reminder.tsx` | `/add-reminder` | Manual reminder create (modal on native) |
-| `app/ideas.tsx` | `/ideas` | Voice-first Ideas vault |
-| `app/manifestation.tsx` | `/manifestation` | Manifestation Command Deck |
+| `app/alarm-edit.tsx` | `/alarm-edit` | Add / edit alarm form |
+| `app/alarm-reliability.tsx` | `/alarm-reliability` | Exact alarm + battery checklist |
+| `app/alarm-active.tsx` | `/alarm-active` | Full-screen Stop / Snooze / Done |
 | `app/+html.tsx` | web only | HTML shell / CSS reset for web |
 | `app/+not-found.tsx` | * | 404 |
 
-Navigation chrome: Home / `+` / Manifest (inline dock on Home & Manifest; shared `BottomDock` helper also available).
+Navigation chrome: GlassDock tabs — Home · Alarms · Ideas · Manifest.
 
 ## Module map
 
@@ -78,6 +82,8 @@ lib/
   api.ts                     API client + fallback
   notifications.ts           Schedule / cancel local notifications
   audio.ts / sounds.ts       Reminder MP3 playback helpers
+  alarms/                    Alarm model, storage, schedule, native bridge
+modules/everly-alarm/        Thin Android AlarmManager + FGS Expo module
   companion/                 Mood, rituals, hype, memories, sync
   manifestation/             Deck state, seeds, dual-stem audio
   ideas/                     Idea vault types, organize, storage, seeds

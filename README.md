@@ -3,6 +3,7 @@
 Zero-scroll executive companion + **Manifestation Command Deck** for high-velocity solo operators.
 
 - **Home:** Personal · Social · Professional reminder board with a warm AI companion  
+- **Alarms:** 12-hour personal reminders; sideloaded APK rings full songs via a thin Kotlin AlarmManager + FGS module  
 - **Ideas:** Voice-first second brain — capture, organize, execute across domains  
 - **Manifest:** Personal · Social · Economical · Professional identity pillars (audio, Reality Lock, Vision prompts)  
 - **Voice router:** Optional FastAPI multi-intent parse (offline heuristic fallback)
@@ -55,18 +56,32 @@ Use **Expo Go** for notifications, MP3, Voice Echo recording, and haptics. Web i
 ## Project layout
 
 ```
-app/                      Expo Router (index, ideas, add-reminder, manifestation)
-components/               Board, companion, ideas, manifestation, theme UI
+app/                      Expo Router (tabs + alarm / reminder screens)
+components/               Board, companion, ideas, manifestation, alarms, glass UI
+lib/alarms/               Alarm model, storage, schedule, native bridge
 lib/companion/            Mood, rituals, hype, follow-up, sync
 lib/ideas/                Voice ideas vault (organize, storage, lifecycle)
 lib/manifestation/        Pillars, storage, dual-stem audio
 lib/theme/                Light / Dark / Glass tokens + persistence
+modules/everly-alarm/     Android AlarmManager + mediaPlayback FGS Expo module
 docs/                     Developer technical documentation
-plans/                    Companion + manifestation roadmaps
+plans/                    Companion + manifestation + Android alarm roadmaps
 backend/                  FastAPI voice parse service
 assets/sounds/            Demo MP3s
 assets/manifestation/     Pillar stills + frequency tones
 ```
+
+### Android APK (closed-app music alarms)
+
+Expo Go cannot host the native alarm module. For exact alarms + full-song playback when the app is closed:
+
+```bash
+npx expo prebuild --platform android
+npx expo run:android   # or build a release APK / EAS build
+```
+
+Then open **Alarms → Reliability** and enable notifications, exact alarms, and battery exclusion.
+
 
 ## Typecheck
 
