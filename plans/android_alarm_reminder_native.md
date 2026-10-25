@@ -1,378 +1,129 @@
-# Personal Android Alarm Reminder App — Implementation Plan
+# Personal Android Alarm Reminder — Simple Plan
 
-**Status:** Plan only (not implemented)  
-**Delivery model:** Sideloaded APK (no Play Store)  
-**UI:** React Native / Expo custom native build  
-**Critical path:** Android AlarmManager → BroadcastReceiver → Foreground Service (mediaPlayback) → ongoing notification actions
+**Goal:** Sideloaded APK that rings local music on time, with Stop / Snooze / Done.  
+**Rule:** All screens stay in React Native so you can change UI anytime. Native Kotlin is a thin helper only.
 
 ---
 
-## 0. Requirement analysis — verdict
+## Do you need Kotlin?
 
-| Ask | Feasible? | Constraint |
+| What you want | Expo / JS alone? | Need Kotlin? |
 | --- | --- | --- |
-| Full-song / looping local audio at alarm time | Yes | Must run in a **foreground service**, not JS timer |
-| Works when UI closed / process killed (normal) | Yes | Exact alarms + reboot reschedule |
-| Works after Force Stop | **No guarantee** | Android policy; communicate clearly |
-| Override all DND / OEM battery killers | **No** | Reliability screen + OEM deep links |
-| Spotify / YouTube streams | Out of scope | Local / bundled only |
-| Sideload avoids Play FGS policy | Partially | Sideload skips Play review, **not** OS FGS / alarm APIs |
+| UI (forms, cards, theme) | Yes | No |
+| “Push” / alert when app is open | `expo-notifications` is fine | No |
+| Fire **on time** when app is closed / phone asleep | Unreliable with JS timers | **Yes — AlarmManager** |
+| Play **full song / loop** in background | Unreliable with JS-only audio | **Yes — short foreground service** |
+| Stop / Snooze / Done on the notification | Better as native actions | Small amount of Kotlin |
 
-**Gap vs current Everly:** `expo-notifications` DATE triggers + in-process `expo-av` cannot reliably start full music when the JS process is dead. This plan adds a **native Android alarm/playback module** and an Expo **dev client / prebuild** APK pipeline.
+So: **Kotlin is not for building the UI.**  
+It is only for “wake up and play music,” which Android will not trust a JS timer to do.
 
----
-
-## 1. Goals and non-goals
-
-### Goals
-1. Daily / weekly / optional one-time reminders with **12h AM/PM** time UI.
-2. Bundled tone, system default alarm URI, **copied local music**, or Silent + vibration.
-3. At fire time: FGS plays audio (once or loop until max duration), vibration optional.
-4. Notification actions: **Stop / Snooze / Mark Done**; tap → active-alarm screen.
-5. 100% local persistence; offline; no account/backend required for core alarms.
-6. Reboot restores schedules; missed-occurrence policy without multi-fire spam.
-7. Conflict queue: never two music tracks at once.
-
-### Non-goals (v1)
-- iOS parity for exact alarm music.
-- Streaming services.
-- Guaranteed fire after Force Stop or while powered off.
-- Always-on background media service waiting for next alarm.
+If you only need a short beep when the app might be open, you could skip Kotlin — that does **not** meet your music + closed-app requirement.
 
 ---
 
-## 2. Target architecture
+## Simple architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│ React Native (Expo Router UI)                               │
-│  Home · Add/Edit · Active Alarm · Reliability · History     │
-│  lib/reminders/*  AsyncStorage / SQLite metadata            │
-└──────────────────────────┬──────────────────────────────────┘
-                           │ TurboModule / Expo Module bridge
-┌──────────────────────────▼──────────────────────────────────┐
-│ Android native (Kotlin)                                     │
-│  AlarmScheduler  — AlarmManager.setExactAndAllowWhileIdle   │
-│  AlarmReceiver   — receives PendingIntent                   │
-│  AlarmPlaybackService — FGS type mediaPlayback              │
-│  AlarmNotification — ongoing + actions                      │
-│  BootReceiver — reschedule only (no media start)            │
-│  AudioStore — copy URI → app files dir                      │
-└─────────────────────────────────────────────────────────────┘
+React Native screens (you edit these freely)
+   Home · Add/Edit · Active alarm · Settings
+        │
+        │  few calls: schedule / cancel / test
+        ▼
+Thin Android module (write once, rarely touch)
+   AlarmManager → play music in foreground service → notification buttons
 ```
 
-### Why this shape
-- Alarms survive process death; JS timers do not.  
-- FGS may be started from an exact-alarm callback for a **user-requested** action (with correct permissions / type).  
-- Boot receiver **reschedules** only — do not start mediaPlayback FGS from boot on modern Android.
+- Reminder data, categories, 12h time, lists → **React Native + AsyncStorage** (same style as today).
+- Scheduling + playback → **one small native module**.
+
+No extra backend, no Play Store, no always-running service waiting for the next alarm.
 
 ---
 
-## 3. Data model (extend / fork Everly reminders)
+## What we build (keep it small)
 
-```ts
-type AlarmReminder = {
-  id: string;
-  title: string;
-  description?: string;
-  category: 'personal' | 'social' | 'professional' | 'financial';
-  timeHour12: number;          // 1–12
-  timeMinute: number;          // 0–59
-  period: 'AM' | 'PM';
-  startDate: string;           // YYYY-MM-DD local
-  endDate?: string | null;
-  frequency: 'once' | 'daily' | 'weekly';
-  weekdays: number[];          // 0=Sun … 6=Sat; required if weekly
-  enabled: boolean;
+### In React Native (easy UI updates)
+1. Home: reminder cards, enable switch, Add / Edit / Delete / Test.
+2. Add/Edit form: title, category, 12h AM/PM time, daily or weekly days, audio pick, vibrate on/off, snooze minutes, max ring time, enabled.
+3. Active alarm screen: big Stop / Snooze (optional; notification actions must work without it).
+4. One “Permissions” screen: notification + exact alarm + battery tip (simple checklist).
 
-  audio: {
-    source: 'default_alarm' | 'bundled' | 'local_file' | 'silent';
-    bundledKey?: string;
-    displayName: string;
-    /** App-managed absolute path after copy */
-    managedPath?: string;
-    /** Original content URI (debug only) */
-    sourceUri?: string;
-    durationMs?: number;
-    missingFallbackUsed?: boolean;
-  };
+### In Kotlin (thin, stable)
+1. `schedule(reminder)` / `cancel(id)` — exact alarm for the **next** fire only.
+2. On fire → start short **foreground service** → play chosen file (or bundled fallback).
+3. Notification: Stop, Snooze, Done.
+4. On boot → reschedule from saved reminders (no music at boot).
 
-  playback: {
-    mode: 'once' | 'loop_until_stopped';
-    maxRingMinutes: 1 | 5 | 10 | 30;
-    gradualVolume: boolean;
-    gradualSeconds?: number;   // e.g. 15–60
-    useAlarmStream: true;      // STREAM_ALARM
-  };
-
-  vibration: {
-    enabled: boolean;
-    patternId: 'default' | 'pulse' | 'double';
-  };
-
-  snoozeMinutes: 5 | 10 | 15 | 30;
-
-  /** Native bookkeeping */
-  native: {
-    nextFireAtEpochMs: number | null;
-    pendingIntentRequestCode: number;
-    lastAlarmId?: string;
-  };
-};
-
-type AlarmOccurrence = {
-  id: string;
-  reminderId: string;
-  scheduledAt: string;
-  state: 'scheduled' | 'triggered' | 'snoozed' | 'completed' | 'dismissed' | 'timed_out' | 'missed';
-  acknowledgedAt?: string;
-};
-```
-
-**Storage:** SQLite (`expo-sqlite` or Watermelon) preferred for occurrences/history; AsyncStorage acceptable for v0 config only. Persist managed audio under `context.filesDir/alarms/`.
+That’s the native surface area. No queue microservice, no export system required for v1.
 
 ---
 
-## 4. Native module API (JS ↔ Android)
+## Cut from the old overbuilt plan
 
-Proposed Expo Module `EverlyAlarm` (Kotlin):
-
-| Method | Purpose |
+| Removed / deferred | Why |
 | --- | --- |
-| `requestPermissions()` | POST_NOTIFICATIONS, schedule exact alarm intent |
-| `canScheduleExactAlarms(): boolean` | Gate UI warning |
-| `schedule(reminderJson): { nextFireAt }` | Cancel old PI → setExactAndAllowWhileIdle |
-| `cancel(reminderId)` | Cancel PendingIntent |
-| `rescheduleAll()` | Boot / app open reconcile |
-| `importAudio(contentUri): { managedPath, displayName, durationMs }` | Copy + validate |
-| `preview(pathOrBundledKey)` / `stopPreview()` | Short MediaPlayer preview |
-| `testFire(reminderId)` | Near-term exact alarm (~5–10s) for QA |
-| `getReliabilityStatus(): ReliabilityStatus` | Permissions + battery + last test |
-| `openExactAlarmSettings()` / `openBatteryOptimizationSettings()` | Settings intents |
-| Events: `onAlarmTriggered`, `onAlarmStopped`, `onQueueChanged` | Bridge to RN |
-
-Manifest essentials (illustrative):
-
-```xml
-<uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
-<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-<uses-permission android:name="android.permission.VIBRATE" />
-<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
-<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-<uses-permission android:name="android.permission.WAKE_LOCK" />
-<!-- READ_MEDIA_AUDIO or SAF only; prefer SAF + copy -->
-
-<service
-  android:name=".alarm.AlarmPlaybackService"
-  android:exported="false"
-  android:foregroundServiceType="mediaPlayback" />
-
-<receiver android:name=".alarm.AlarmReceiver" android:exported="false" />
-<receiver android:name=".alarm.BootReceiver" android:exported="true">
-  <intent-filter>
-    <action android:name="android.intent.action.BOOT_COMPLETED" />
-  </intent-filter>
-</receiver>
-```
-
-Use `AlarmClock` info extras where useful so the system may surface alarm UX; still own FGS playback.
+| Phases C–F as separate epics | One native slice covers play + actions |
+| Conflict queue sophistication | If a second alarm fires while one plays: stop first or ignore second until Stop (pick one simple rule) |
+| Gradual volume, many vibe presets | Optional later |
+| JSON export/import | Later |
+| OEM deep-link encyclopedia | One Settings button + short note |
+| Missed-alarm analytics | On open: show “missed” list, don’t auto-play old ones |
 
 ---
 
-## 5. Alarm fire sequence (must-pass)
+## Two phases only
 
-1. `AlarmReceiver.onReceive` loads reminder id from intent extras (SharedPreferences/SQLite).  
-2. If another FGS is already playing → **enqueue** occurrence; update notification badge count; return.  
-3. Else `context.startForegroundService(AlarmPlaybackService)`.  
-4. Service within seconds: `startForeground(notifId, ongoingNotification)` with Stop/Snooze/Done.  
-5. Acquire brief wake lock only as needed; play via `AudioAttributes.USAGE_ALARM`.  
-6. Apply vibration pattern if enabled.  
-7. Loop or once; enforce `maxRingMinutes` timer.  
-8. On Stop / Snooze / Done / timeout: stop players, cancel vibe, stopForeground, stopSelf.  
-9. Scheduler writes occurrence state; computes **next** fire; `setExactAndAllowWhileIdle` for that single next occurrence (do **not** rely on inexact repeating alarms).
+### Phase 1 — UI (RN only)
+- Reminder model + Home + Add/Edit (12h picker).
+- Save locally.
+- Wire “Test” to a stub that later calls native.
+- You can restyle everything here without touching Kotlin.
 
----
+**Done when:** you like the screens and can create/edit/disable reminders.
 
-## 6. UI screens (RN)
+### Phase 2 — Native alarm + music (small Kotlin module)
+- Exact alarm + FGS playback + Stop/Snooze/Done.
+- Copy picked local file into app storage (so moves don’t break alarms).
+- Boot reschedule.
+- Build **APK** (Expo prebuild / EAS). Not Expo Go.
 
-| Screen | Responsibilities |
-| --- | --- |
-| **Home** | Prominent Add; cards (title, category, 12h time, repeat, next occurrence, audio name, sound/vibe icons, enable switch); Edit / Test / Delete; sort by next fire; disabled at bottom |
-| **Add/Edit** | All form fields + live summary sentence; 12h picker with visible AM/PM; weekday multi-select; audio picker + preview; max duration; snooze; gradual volume |
-| **Active Alarm** | Large Stop / Snooze; title/desc; optional queue count; opened from notification tap (not required for alarm to function) |
-| **Reliability** | Notification, exact alarm, battery opt, OEM notes, audio health, last test result + deep links |
-| **History / Missed** | Missed in last N minutes; dismiss; no auto multi-play |
-| **Export/Import** | JSON backup of configs (+ note that audio files may need re-pick if not packaged) |
+**Done when:** phone locked, app closed, music still rings; notification buttons work.
 
-Reuse Everly `PhoneShell` / themes where helpful; this product track can live as `app/(alarms)/` routes or a focused fork package.
-
-### Form summary example
-> Every Monday, Wednesday, and Friday at 08:30 AM · Morning Music · Repeat for up to 5 minutes · Vibration on
+Ship after Phase 2. Improve UI anytime in RN.
 
 ---
 
-## 7. Scheduling rules
+## Simple conflict rule (v1)
 
-1. Convert 12h + AM/PM → local `LocalDateTime` (careful: 12 AM = 00:00, 12 PM = 12:00).  
-2. If datetime ≤ now → advance to next eligible day (daily +1 day; weekly next matching weekday).  
-3. Honor `startDate` / `endDate`; if past end → disable and clear native alarm.  
-4. On edit/disable/delete: **cancel** previous `PendingIntent` before any new schedule.  
-5. On TZ / time change: listen `ACTION_TIME_CHANGED` / `TIMEZONE_CHANGED` → `rescheduleAll()`.  
-6. If `canScheduleExactAlarms() == false`: show blocking warning; fall back messaging (inexact is **not** acceptable for music alarms — push user to grant access).
+**Only one song at a time.**  
+If another reminder fires while playing: show it in the notification text as “also due,” and start it only after Stop/Done — or skip until next scheduled day. No fancy queue engine.
 
 ---
 
-## 8. Audio & vibration policy
+## Permissions (minimal)
 
-| Topic | Decision |
-| --- | --- |
-| Volume stream | `STREAM_ALARM` / `USAGE_ALARM` |
-| Alarm volume 0 | Warn on save + on Test |
-| Preview | Separate short-lived player; stop previous on new selection |
-| Import | SAF picker → copy to app storage → validate decode |
-| Missing file | Bundled fallback + `missingFallbackUsed` flag + UI warning |
-| Interruption (call) | Pause; resume only if still within max ring window; else timeout |
-| FGS notification sound | Silent channel (sound comes from MediaPlayer) |
-| Vibration | Independent of audio; stop with alarm end |
-| Loop | `loop_until_stopped` capped by max minutes |
+Ask for:
+1. Notifications  
+2. Exact alarms (Alarms & reminders)  
+3. Suggest ignoring battery optimization (one link)
+
+Show a clear message if exact alarms are off — don’t silently fail.
 
 ---
 
-## 9. Conflicts & queue
+## Acceptance (short)
 
-- Single `AlarmPlaybackService` instance; `ConcurrentLinkedQueue` of pending occurrence ids.  
-- Notification subtitle: `+N waiting`.  
-- After Stop/Done/Timeout of current → optionally auto-start next if still within eligibility window (e.g. triggered < 5 min ago); else mark missed/queued-expired.  
-- Snooze of A must not cancel B.
-
----
-
-## 10. Missed & reboot policy
-
-| Event | Behavior |
-| --- | --- |
-| Boot | `BootReceiver` → `rescheduleAll()` only |
-| App open | Reconcile: any `scheduled` with `fireAt < now - grace` → `missed`; schedule next; optional banner “missed in last 30 min” |
-| Power off during fire | No playback; mark missed after next boot/open |
-| Force stop | Document as unsupported; on next open reschedule |
+1. Create reminder with 12h time.  
+2. Daily / weekly next time is correct.  
+3. Local or bundled audio plays at fire time with phone locked.  
+4. Stop / Snooze / Done work from notification.  
+5. Edit/delete cancels old alarm.  
+6. After reboot, future alarms return.  
+7. Verified on your phone with installed APK.
 
 ---
 
-## 11. Permissions & Reliability screen
+## Next step
 
-Checklist UI:
-
-1. Notifications — required Android 13+.  
-2. Alarms & reminders (exact) — required.  
-3. Battery optimization exemption — strongly recommended.  
-4. OEM autostart / background (Xiaomi, Oppo, Vivo, Samsung) — link to known settings where possible; else show copy.  
-5. Audio files — scan managed paths.  
-6. Last successful test alarm timestamp.
-
----
-
-## 12. Expo / build pipeline
-
-| Step | Action |
-| --- | --- |
-| 1 | `npx expo prebuild -p android` (or continuous native directory) |
-| 2 | Add Kotlin module under `modules/everly-alarm` (Expo Modules API) |
-| 3 | Configure `app.json` / `app.config` plugins for permissions + FGS type |
-| 4 | EAS Build **preview/APK** profile (`buildType: apk`) for sideload |
-| 5 | Disable depending on Expo Go for alarm QA — **dev client / release APK only** |
-
-Web / Expo Go remain useful for form UX only; mark alarm features `Platform.OS === 'android' && nativeModuleAvailable`.
-
----
-
-## 13. Implementation phases
-
-### Phase A — Foundations (data + UI shell)
-- Extend types with Financial category + alarm fields.  
-- Home cards + Add/Edit with 12h DateTimePicker (`display: 'spinner'` / custom AM/PM).  
-- Local persistence + summary preview.  
-- Reliability screen stubs (permission APIs).  
-**Exit:** Forms save/load; no native fire yet.
-
-### Phase B — Native scheduler + silent fire
-- Expo module: schedule/cancel/rescheduleAll/boot.  
-- Receiver logs + RN event; notification without music first.  
-**Exit:** Exact alarm fires with notification when app killed (smoke test).
-
-### Phase C — FGS playback
-- `AlarmPlaybackService` + MediaPlayer/ExoPlayer, vibration, max duration, Stop/Snooze/Done.  
-- Active alarm screen deep link.  
-**Exit:** Full song loops until Stop or max duration from lock screen.
-
-### Phase D — Audio library
-- SAF import, copy, preview, fallback, silent mode.  
-**Exit:** Acceptance criteria 3, 10.
-
-### Phase E — Queue, history, missed, export
-- Conflict queue, occurrence history, missed banner, JSON export/import.  
-**Exit:** Criteria 8, 9, 11.
-
-### Phase F — Device hardening
-- Overnight idle, battery saver, OEM checklist, volume-0 warnings, call interruption.  
-**Exit:** Criteria 12–13 on physical APK.
-
----
-
-## 14. Mapping to current Everly repo
-
-| Existing | Reuse / replace |
-| --- | --- |
-| `lib/types.ts` ReminderTask | Extend or parallel `AlarmReminder` (add `financial`) |
-| `lib/notifications.ts` expo-notifications | **Replace** Android path with EverlyAlarm module; keep iOS/web soft path |
-| `lib/audio.ts` expo-av | Preview only; alarm playback = native |
-| `assets/sounds/*` | Bundled defaults |
-| Companion / Ideas / Manifest | Unchanged adjacent tabs; alarms can remain Home-primary |
-| Expo Go | Insufficient for final acceptance |
-
-Recommended package path: `modules/everly-alarm/` + `app/alarms/` routes + `plans/android_alarm_reminder_native.md` (this file).
-
----
-
-## 15. Acceptance criteria → test plan
-
-| # | Criterion | Test |
-| --- | --- | --- |
-| 1 | Create via Home + 12h picker | Manual form QA |
-| 2 | Daily/weekly next occurrence | Unit tests on schedule pure functions + device |
-| 3 | Local file preview + alarm play | SAF import → Test Alarm |
-| 4 | Background / locked | Schedule +1 min, leave app, lock |
-| 5 | Notif actions without Home | Stop/Snooze/Done from shade |
-| 6 | Max duration | Loop 1-min max |
-| 7 | Vibration stops | Toggle on; Stop |
-| 8 | Edit/delete no orphans | `adb shell dumpsys alarm` before/after |
-| 9 | Reboot restore | Reboot; confirm next PI |
-| 10 | Missing audio fallback | Delete managed file; trigger |
-| 11 | No dual tracks | Two near alarms; queue |
-| 12 | Permission messaging | Deny exact alarm; UI warns |
-| 13 | Overnight APK | Install release APK; idle 8h |
-
----
-
-## 16. Risks
-
-| Risk | Mitigation |
-| --- | --- |
-| OEM kills FGS / blocks autostart | Reliability screen + OEM guides |
-| Exact alarm permission denied | Block save of enabled alarms until granted |
-| Large music files / storage | Cap import size; copy compress optional |
-| ExoPlayer vs MediaPlayer | Start MediaPlayer; migrate if format issues |
-| Notification action process death | Actions handled in `BroadcastReceiver` / service, not only JS |
-| Expo config drift | Config plugin owns manifest merges |
-
----
-
-## 17. Commit / delivery note
-
-When implementation starts, prefer:
-
-```
-feat(alarms): native Android exact-alarm scheduler and foreground music playback service
-```
-
-This plan file is the source of truth until Phase A begins.
+Start **Phase 1** (RN UI only). Add the Kotlin module only when the screens feel right.
