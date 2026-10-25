@@ -82,6 +82,50 @@ object AlarmScheduler {
     schedule(ctx, base)
   }
 
+  /**
+   * After a fire, queue next occurrence for recurring alarms so music keeps
+   * working without waiting for JS to open. One-time alarms are disabled.
+   */
+  fun advanceAfterFire(ctx: Context, payload: JSONObject) {
+    val freq = payload.optString("frequency", "daily")
+    if (freq == "once") {
+      payload.put("enabled", false)
+      AlarmStore.put(ctx, payload)
+      cancel(ctx, payload.optString("id"))
+      return
+    }
+
+    val hour24 = payload.optInt("hour24", 9)
+    val minute = payload.optInt("minute", 0)
+    val weekdays = mutableListOf<Int>()
+    val arr = payload.optJSONArray("weekdays")
+    if (arr != null) {
+      for (i in 0 until arr.length()) weekdays.add(arr.optInt(i))
+    }
+
+    val cal = java.util.Calendar.getInstance()
+    // Search up to 8 days ahead for the next slot strictly after now
+    for (i in 1..8) {
+      cal.timeInMillis = System.currentTimeMillis()
+      cal.add(java.util.Calendar.DAY_OF_YEAR, i)
+      cal.set(java.util.Calendar.HOUR_OF_DAY, hour24)
+      cal.set(java.util.Calendar.MINUTE, minute)
+      cal.set(java.util.Calendar.SECOND, 0)
+      cal.set(java.util.Calendar.MILLISECOND, 0)
+
+      if (freq == "weekly") {
+        // JS weekdays: 0=Sun … 6=Sat; Calendar: SUNDAY=1 … SATURDAY=7
+        val jsDay = cal.get(java.util.Calendar.DAY_OF_WEEK) - 1
+        if (weekdays.isNotEmpty() && !weekdays.contains(jsDay)) continue
+      }
+
+      payload.put("nextFireAt", cal.timeInMillis)
+      payload.put("enabled", true)
+      schedule(ctx, payload)
+      return
+    }
+  }
+
   private fun pendingFire(ctx: Context, id: String, payload: JSONObject?): PendingIntent {
     val intent = Intent(ctx, AlarmReceiver::class.java).apply {
       action = ACTION_FIRE

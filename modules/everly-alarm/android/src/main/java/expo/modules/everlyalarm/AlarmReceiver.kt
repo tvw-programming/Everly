@@ -20,10 +20,11 @@ class AlarmReceiver : BroadcastReceiver() {
       else -> AlarmStore.get(context, id)
     } ?: return
 
-    // One song at a time: if already ringing, mark as also-due and skip start
+    // One song at a time: mark also-due, skip music, still advance to next day
     val active = AlarmStore.getActiveId(context)
     if (!active.isNullOrBlank() && active != id) {
       AlarmPlaybackService.enqueueAlsoDue(context, payload)
+      AlarmScheduler.advanceAfterFire(context, JSONObject(payload.toString()))
       return
     }
 
@@ -37,5 +38,8 @@ class AlarmReceiver : BroadcastReceiver() {
     } else {
       context.startService(service)
     }
+
+    // Queue the following occurrence while this one plays (closed-app recurring).
+    AlarmScheduler.advanceAfterFire(context, JSONObject(payload.toString()))
   }
 }

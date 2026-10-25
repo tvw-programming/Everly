@@ -217,6 +217,7 @@ Persisted id only (`@everly/theme/v1`); tokens are code-defined.
 | `@ideas/vault/v1` | ideas storage | `IdeaNote[]` |
 | `@everly/theme/v1` | theme storage | `ThemeId` string |
 | `@alarms/v1` | `lib/alarms/storage.ts` | `AlarmReminder[]` |
+| `@alarms/missed/v1` | `lib/alarms/bootstrap.ts` | `{ id, title, scheduledAt }[]` |
 
 ---
 

@@ -8,6 +8,7 @@ import { Platform } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { PaperProvider } from 'react-native-paper';
 
+import { attachAlarmBootstrap } from '@/lib/alarms/bootstrap';
 import { configureAudioMode } from '@/lib/audio';
 import { attachNotificationListeners } from '@/lib/notifications';
 import { ThemeProvider as EverlyThemeProvider, useTheme } from '@/lib/theme/ThemeContext';
@@ -45,7 +46,12 @@ export default function RootLayout() {
     if (Platform.OS !== 'web') {
       void configureAudioMode();
     }
-    return attachNotificationListeners();
+    const detachNotifs = attachNotificationListeners();
+    const detachAlarms = attachAlarmBootstrap();
+    return () => {
+      detachNotifs?.();
+      detachAlarms();
+    };
   }, []);
 
   if (!fontsReady && !loaded) {

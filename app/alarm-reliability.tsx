@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -9,6 +9,7 @@ import {
   openExactAlarmSettings,
   type ReliabilityStatus,
 } from '@/lib/alarms/native';
+import { ensureNotificationPermissions } from '@/lib/notifications';
 import { useTheme } from '@/lib/theme/ThemeContext';
 
 export default function AlarmReliabilityScreen() {
@@ -16,10 +17,14 @@ export default function AlarmReliabilityScreen() {
   const insets = useSafeAreaInsets();
   const [status, setStatus] = useState<ReliabilityStatus | null>(null);
 
+  const refresh = useCallback(() => {
+    void getReliabilityStatus().then(setStatus);
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
-      void getReliabilityStatus().then(setStatus);
-    }, [])
+      refresh();
+    }, [refresh])
   );
 
   return (
@@ -73,9 +78,24 @@ export default function AlarmReliabilityScreen() {
 
       <Pressable
         style={[styles.btn, { backgroundColor: theme.accent }]}
+        onPress={async () => {
+          const ok = await ensureNotificationPermissions();
+          if (!ok) {
+            Alert.alert(
+              'Notifications blocked',
+              'Enable notifications in system settings so alarm actions appear.'
+            );
+          }
+          refresh();
+        }}
+      >
+        <Text style={[styles.btnText, { color: theme.onAccent }]}>Enable notifications</Text>
+      </Pressable>
+      <Pressable
+        style={[styles.btnOutline, { borderColor: theme.border }]}
         onPress={() => void openExactAlarmSettings()}
       >
-        <Text style={[styles.btnText, { color: theme.onAccent }]}>Open alarm settings</Text>
+        <Text style={[styles.btnOutlineText, { color: theme.ink }]}>Open alarm settings</Text>
       </Pressable>
       <Pressable
         style={[styles.btnOutline, { borderColor: theme.border }]}
@@ -83,7 +103,7 @@ export default function AlarmReliabilityScreen() {
       >
         <Text style={[styles.btnOutlineText, { color: theme.ink }]}>Open battery settings</Text>
       </Pressable>
-      <Pressable onPress={() => void getReliabilityStatus().then(setStatus)}>
+      <Pressable onPress={refresh}>
         <Text style={{ textAlign: 'center', color: theme.accent, fontWeight: '800' }}>Refresh</Text>
       </Pressable>
     </View>

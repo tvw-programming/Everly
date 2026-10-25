@@ -123,7 +123,9 @@ Bundled WAVs: `assets/manifestation/tones/hz{40,528,639,888}.wav`. Web uses WebA
 | Add/Edit 12h form (category, repeat, audio, snooze) | Shipped | `app/alarm-edit.tsx` |
 | Reliability checklist (exact alarm + battery) | Shipped | `app/alarm-reliability.tsx` |
 | Active alarm Stop / Snooze / Done UI | Shipped | `app/alarm-active.tsx` |
+| Launch / foreground reschedule + missed list | Shipped | `lib/alarms/bootstrap.ts` — no auto-play of missed |
 | Thin `everly-alarm` native module (AlarmManager + FGS) | Shipped | `modules/everly-alarm` — needs custom APK |
+| Native advance-after-fire for recurring | Shipped | Kotlin `AlarmScheduler.advanceAfterFire` |
 | Expo Go / web fallback via `expo-notifications` | Shipped | UI works; no closed-app full-song |
 
 Plan: [`plans/android_alarm_reminder_native.md`](../plans/android_alarm_reminder_native.md).

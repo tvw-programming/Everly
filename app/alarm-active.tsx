@@ -3,9 +3,10 @@ import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { snoozeActiveAlarm, stopActiveAlarm } from '@/lib/alarms/native';
+import { syncAlarmsOnLaunch } from '@/lib/alarms/bootstrap';
+import { snoozeActiveAlarm, stopActiveAlarm, syncAlarmSchedule } from '@/lib/alarms/native';
 import { formatAlarmTime } from '@/lib/alarms/schedule';
-import { getAlarm } from '@/lib/alarms/storage';
+import { getAlarm, upsertAlarm } from '@/lib/alarms/storage';
 import type { AlarmReminder } from '@/lib/alarms/types';
 import { useTheme } from '@/lib/theme/ThemeContext';
 
@@ -20,6 +21,26 @@ export default function AlarmActiveScreen() {
     if (!id) return;
     void getAlarm(id).then(setAlarm);
   }, [id]);
+
+  async function finishAndReschedule(mode: 'stop' | 'done' | 'snooze') {
+    if (mode === 'snooze') {
+      await snoozeActiveAlarm(alarm?.snoozeMinutes ?? 10);
+    } else {
+      await stopActiveAlarm();
+      if (alarm) {
+        let next = { ...alarm };
+        if (mode === 'done' && alarm.frequency === 'once') {
+          next = { ...next, enabled: false };
+        }
+        const fire = await syncAlarmSchedule(next);
+        next.nextFireAt = fire;
+        await upsertAlarm(next);
+      } else {
+        await syncAlarmsOnLaunch();
+      }
+    }
+    router.replace('/alarms');
+  }
 
   return (
     <View
@@ -43,32 +64,16 @@ export default function AlarmActiveScreen() {
 
       <Pressable
         style={[styles.primary, { backgroundColor: theme.accent }]}
-        onPress={async () => {
-          await stopActiveAlarm();
-          router.replace('/alarms');
-        }}
+        onPress={() => void finishAndReschedule('stop')}
       >
         <Text style={[styles.primaryText, { color: theme.onAccent }]}>Stop</Text>
       </Pressable>
 
-      <Pressable
-        style={styles.secondary}
-        onPress={async () => {
-          await snoozeActiveAlarm(alarm?.snoozeMinutes ?? 10);
-          router.replace('/alarms');
-        }}
-      >
-        <Text style={styles.secondaryText}>
-          Snooze {alarm?.snoozeMinutes ?? 10} min
-        </Text>
+      <Pressable style={styles.secondary} onPress={() => void finishAndReschedule('snooze')}>
+        <Text style={styles.secondaryText}>Snooze {alarm?.snoozeMinutes ?? 10} min</Text>
       </Pressable>
 
-      <Pressable
-        onPress={async () => {
-          await stopActiveAlarm();
-          router.replace('/alarms');
-        }}
-      >
+      <Pressable onPress={() => void finishAndReschedule('done')}>
         <Text style={styles.done}>Mark as Done</Text>
       </Pressable>
     </View>

@@ -15,12 +15,18 @@ import { AlarmCard } from '@/components/alarms/AlarmCard';
 import { PhoneShell } from '@/components/PhoneShell';
 import { useDockInset } from '@/components/glass/GlassDock';
 import {
+  clearMissedAlarms,
+  loadMissedAlarms,
+  syncAlarmsOnLaunch,
+  type MissedAlarm,
+} from '@/lib/alarms/bootstrap';
+import {
   cancelAlarmSchedule,
   getReliabilityStatus,
   syncAlarmSchedule,
   testAlarm,
 } from '@/lib/alarms/native';
-import { deleteAlarm, loadAlarms, upsertAlarm } from '@/lib/alarms/storage';
+import { deleteAlarm, upsertAlarm } from '@/lib/alarms/storage';
 import type { AlarmReminder } from '@/lib/alarms/types';
 import { useTheme } from '@/lib/theme/ThemeContext';
 
@@ -29,13 +35,15 @@ export default function AlarmsScreen() {
   const insets = useSafeAreaInsets();
   const dock = useDockInset();
   const [alarms, setAlarms] = useState<AlarmReminder[]>([]);
+  const [missed, setMissed] = useState<MissedAlarm[]>([]);
   const [loading, setLoading] = useState(true);
   const [banner, setBanner] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
-      const list = await loadAlarms();
+      const { alarms: list, missed: missedList } = await syncAlarmsOnLaunch();
       setAlarms(list);
+      setMissed(missedList);
       const status = await getReliabilityStatus();
       if (!status.nativeModule) {
         setBanner('Fallback mode: install the Android APK for closed-app full-song alarms.');
@@ -81,6 +89,34 @@ export default function AlarmsScreen() {
           >
             {banner}
           </Text>
+        ) : null}
+
+        {missed.length > 0 ? (
+          <View
+            style={StyleSheet.flatten([
+              styles.missed,
+              { backgroundColor: theme.soft, borderColor: theme.border },
+            ])}
+          >
+            <Text style={[styles.missedTitle, { color: theme.ink }]}>
+              Missed while away ({missed.length})
+            </Text>
+            <Text style={[styles.missedBody, { color: theme.muted }]}>
+              {missed
+                .slice(0, 3)
+                .map((m) => m.title)
+                .join(' · ')}
+              {missed.length > 3 ? '…' : ''} — not auto-played.
+            </Text>
+            <Pressable
+              onPress={async () => {
+                await clearMissedAlarms();
+                setMissed(await loadMissedAlarms());
+              }}
+            >
+              <Text style={{ color: theme.accent, fontWeight: '800', marginTop: 6 }}>Dismiss</Text>
+            </Pressable>
+          </View>
         ) : null}
 
         <Link href="/alarm-edit" asChild>
@@ -168,6 +204,15 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     fontWeight: '600',
   },
+  missed: {
+    marginHorizontal: 14,
+    marginBottom: 8,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  missedTitle: { fontWeight: '900', fontSize: 13 },
+  missedBody: { fontSize: 12, lineHeight: 17, marginTop: 4 },
   addBtn: {
     marginHorizontal: 14,
     marginBottom: 12,
