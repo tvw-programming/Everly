@@ -8,8 +8,15 @@ import { getReminderById, upsertReminder } from './storage';
 import type { Reminder } from './types';
 
 // Expo Go on Android ships without expo-notifications' native modules, so importing it throws there
-const Notifications: typeof NotificationsModule | null =
-  Platform.OS === 'android' && isRunningInExpoGo() ? null : require('expo-notifications');
+const Notifications: typeof NotificationsModule | null = (() => {
+  if (Platform.OS === 'android' && isRunningInExpoGo()) return null;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    return require('expo-notifications') as typeof NotificationsModule;
+  } catch {
+    return null;
+  }
+})();
 
 Notifications?.setNotificationHandler({
   handleNotification: async () => ({

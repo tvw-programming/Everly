@@ -2,10 +2,14 @@
  * Thin bridge to the EverlyAlarm native module.
  * When the native APK module is missing (web / Expo Go), falls back to
  * expo-notifications + local preview so UI still works.
+ *
+ * Never statically import expo-notifications — Android Expo Go crashes on
+ * TopicSubscriptionModule.requireNativeModule at module load.
  */
-import { Platform } from 'react-native';
-import * as Notifications from 'expo-notifications';
+import { isRunningInExpoGo } from 'expo';
+import type * as NotificationsModule from 'expo-notifications';
 import * as Linking from 'expo-linking';
+import { Platform } from 'react-native';
 
 import { playSound, stopSound } from '@/lib/audio';
 
@@ -36,6 +40,19 @@ type NativeModule = {
 
 let lastTestAt: string | null = null;
 const fallbackNotifIds = new Map<string, string>();
+
+function loadNotifications(): typeof NotificationsModule | null {
+  if (Platform.OS === 'web') return null;
+  if (Platform.OS === 'android' && isRunningInExpoGo()) return null;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    return require('expo-notifications') as typeof NotificationsModule;
+  } catch {
+    return null;
+  }
+}
+
+const Notifications = loadNotifications();
 
 function getNative(): NativeModule | null {
   try {
@@ -78,7 +95,7 @@ function toNativePayload(alarm: AlarmReminder) {
 }
 
 async function ensureNotifPermission(): Promise<boolean> {
-  if (Platform.OS === 'web') return false;
+  if (!Notifications || Platform.OS === 'web') return false;
   const existing = await Notifications.getPermissionsAsync();
   if (existing.granted) return true;
   const req = await Notifications.requestPermissionsAsync();
@@ -99,7 +116,9 @@ export async function syncAlarmSchedule(alarm: AlarmReminder): Promise<number | 
     return res.nextFireAt ?? next;
   }
 
-  // Fallback: expo-notifications (dev / web / Expo Go) — not full-song FGS
+  // Fallback: expo-notifications (dev builds) — not full-song FGS; unavailable in Expo Go Android
+  if (!Notifications) return next;
+
   if (fallbackNotifIds.has(alarm.id)) {
     try {
       await Notifications.cancelScheduledNotificationAsync(fallbackNotifIds.get(alarm.id)!);
@@ -136,7 +155,7 @@ export async function cancelAlarmSchedule(id: string): Promise<void> {
     return;
   }
   const notifId = fallbackNotifIds.get(id);
-  if (notifId) {
+  if (notifId && Notifications) {
     try {
       await Notifications.cancelScheduledNotificationAsync(notifId);
     } catch {
@@ -206,7 +225,7 @@ export async function getReliabilityStatus(): Promise<ReliabilityStatus> {
   }
 
   let notifications = false;
-  if (Platform.OS !== 'web') {
+  if (Notifications) {
     try {
       notifications = (await Notifications.getPermissionsAsync()).granted;
     } catch {
