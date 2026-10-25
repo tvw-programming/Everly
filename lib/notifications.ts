@@ -1,4 +1,5 @@
-import * as Notifications from 'expo-notifications';
+import { isRunningInExpoGo } from 'expo';
+import type * as NotificationsModule from 'expo-notifications';
 import { Platform } from 'react-native';
 
 import { playSound } from './audio';
@@ -6,9 +7,14 @@ import { getNextFireDate } from './schedule';
 import { getReminderById, upsertReminder } from './storage';
 import type { Reminder } from './types';
 
-Notifications.setNotificationHandler({
+// Expo Go on Android ships without expo-notifications' native modules, so importing it throws there
+const Notifications: typeof NotificationsModule | null =
+  Platform.OS === 'android' && isRunningInExpoGo() ? null : require('expo-notifications');
+
+Notifications?.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: false,
     shouldSetBadge: false,
   }),
@@ -17,7 +23,7 @@ Notifications.setNotificationHandler({
 let listenersAttached = false;
 
 export async function ensureNotificationPermissions(): Promise<boolean> {
-  if (Platform.OS === 'web') {
+  if (Platform.OS === 'web' || !Notifications) {
     return false;
   }
   const existing = await Notifications.getPermissionsAsync();
@@ -27,7 +33,7 @@ export async function ensureNotificationPermissions(): Promise<boolean> {
 }
 
 export async function scheduleReminderNotification(reminder: Reminder): Promise<string | undefined> {
-  if (Platform.OS === 'web' || !reminder.enabled) return undefined;
+  if (Platform.OS === 'web' || !Notifications || !reminder.enabled) return undefined;
 
   const granted = await ensureNotificationPermissions();
   if (!granted) return undefined;
@@ -54,14 +60,17 @@ export async function scheduleReminderNotification(reminder: Reminder): Promise<
       },
       sound: false,
     },
-    trigger: next,
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DATE,
+      date: next,
+    },
   });
 
   return id;
 }
 
 export async function cancelReminderNotification(notificationId?: string): Promise<void> {
-  if (!notificationId || Platform.OS === 'web') return;
+  if (!notificationId || Platform.OS === 'web' || !Notifications) return;
   try {
     await Notifications.cancelScheduledNotificationAsync(notificationId);
   } catch {
@@ -106,7 +115,7 @@ async function handleNotificationData(data: Record<string, unknown> | undefined)
 }
 
 export function attachNotificationListeners(): () => void {
-  if (listenersAttached || Platform.OS === 'web') {
+  if (listenersAttached || Platform.OS === 'web' || !Notifications) {
     return () => undefined;
   }
   listenersAttached = true;

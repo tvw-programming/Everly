@@ -1,7 +1,10 @@
-import { useRoute } from '@react-navigation/native';
-import type { RouteProp } from '@react-navigation/native';
+import type { EverlyTheme } from '@/lib/theme/buildTheme';
+import { useTheme } from '@/lib/theme/ThemeContext';
+import { useThemedStyles } from '@/lib/theme/useThemedStyles';
+import { Link, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PhoneShell } from '@/components/PhoneShell';
 import { WarmInboundBubble } from '@/components/WarmInboundBubble';
@@ -17,11 +20,12 @@ import {
   updatePillar,
 } from '@/lib/manifestation/storage';
 import type { ManifestDeckState, ManifestPillar, ManifestPillarId } from '@/lib/manifestation/types';
-import { useRootNavigation, type RootStackParamList } from '@/lib/navigation';
 
 export default function ManifestationScreen() {
-  const navigation = useRootNavigation();
-  const { params } = useRoute<RouteProp<RootStackParamList, 'Manifestation'>>();
+  const styles = useThemedStyles(createStyles);
+  const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{ pillar?: string }>();
   const [deck, setDeck] = useState<ManifestDeckState | null>(null);
   const [activeId, setActiveId] = useState<ManifestPillarId | null>(null);
   const [lockPillar, setLockPillar] = useState<ManifestPillar | null>(null);
@@ -38,14 +42,22 @@ export default function ManifestationScreen() {
 
   useEffect(() => {
     void refresh();
-    return () => {
-      void stopManifestAudio();
-    };
   }, [refresh]);
+
+  // Tab screens stay mounted, so stop the deck when it loses focus rather than
+  // on unmount — otherwise the affirmation keeps playing over another tab.
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        setActiveId(null);
+        void stopManifestAudio();
+      };
+    }, [])
+  );
 
   useEffect(() => {
     if (!deck) return;
-    const p = params?.pillar;
+    const p = params.pillar as ManifestPillarId | undefined;
     if (p && deck.pillars[p]) {
       setActiveId(p);
       setInbound(deck.pillars[p].companionHook);
@@ -55,7 +67,7 @@ export default function ManifestationScreen() {
       );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- welcome once when deck loads
-  }, [params?.pillar, deck?.identityCode]);
+  }, [params.pillar, deck?.identityCode]);
 
   const ambient = useMemo(() => {
     if (!deck || !activeId) return '#070B12';
@@ -86,7 +98,7 @@ export default function ManifestationScreen() {
   return (
     <PhoneShell>
       <View style={[styles.root, { backgroundColor: ambient }]}>
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: 16 + insets.top }]}>
           <View style={{ flex: 1 }}>
             <Text style={styles.kicker}>Today&apos;s Identity Code</Text>
             {editingCode ? (
@@ -215,20 +227,6 @@ export default function ManifestationScreen() {
           onFinished={() => setInbound(null)}
         />
 
-        <View style={styles.bottomNav}>
-          <Pressable style={styles.navSide} onPress={() => navigation.navigate('Home')}>
-            <Text style={styles.navIcon}>⌂</Text>
-            <Text style={styles.navLabel}>Home</Text>
-          </Pressable>
-          <Pressable style={styles.navSide} onPress={() => navigation.navigate('Ideas')}>
-            <Text style={styles.navIcon}>💡</Text>
-            <Text style={styles.navLabel}>Ideas</Text>
-          </Pressable>
-          <View style={styles.navSide}>
-            <Text style={[styles.navIcon, styles.navActive]}>✦</Text>
-            <Text style={[styles.navLabel, styles.navActive]}>Manifest</Text>
-          </View>
-        </View>
 
         <RealityLock
           pillar={lockPillar}
@@ -236,7 +234,7 @@ export default function ManifestationScreen() {
           onSkip={() => setLockPillar(null)}
           onComplete={() => {
             setLockPillar(null);
-            navigation.replace('Home');
+            router.replace('/');
           }}
         />
 
@@ -253,7 +251,7 @@ export default function ManifestationScreen() {
         />
 
         {visionOpen ? (
-          <View style={styles.visionSheet}>
+          <View style={[styles.visionSheet, { paddingBottom: 16 + insets.bottom }]}>
             <Text style={styles.visionTitle}>Vision Synthesizer</Text>
             <Text style={styles.visionHint}>
               Describe the scene. v1 stores the prompt and pins it to the active pillar. Connect
@@ -265,14 +263,14 @@ export default function ManifestationScreen() {
               value={visionPrompt}
               onChangeText={setVisionPrompt}
               placeholder="Me on an SF terrace with an approved acquisition term sheet…"
-              placeholderTextColor={palette.muted}
+              placeholderTextColor={theme.muted}
             />
             <View style={styles.tools}>
               <Pressable style={styles.toolBtn} onPress={() => setVisionOpen(false)}>
                 <Text style={styles.toolText}>Cancel</Text>
               </Pressable>
               <Pressable
-                style={[styles.toolBtn, { backgroundColor: palette.accent }]}
+                style={[styles.toolBtn, { backgroundColor: theme.accent }]}
                 onPress={async () => {
                   const id = activeId ?? 'professional';
                   const next = await updatePillar(id, { visionPrompt });
@@ -283,7 +281,7 @@ export default function ManifestationScreen() {
                   setVisionOpen(false);
                 }}
               >
-                <Text style={[styles.toolText, { color: palette.white }]}>Save Prompt</Text>
+                <Text style={[styles.toolText, { color: theme.onAccent }]}>Save Prompt</Text>
               </Pressable>
             </View>
           </View>
@@ -293,7 +291,8 @@ export default function ManifestationScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (t: EverlyTheme) =>
+  StyleSheet.create({
   root: { flex: 1 },
   header: {
     flexDirection: 'row',
@@ -306,27 +305,27 @@ const styles = StyleSheet.create({
   kicker: {
     fontSize: 10,
     fontWeight: '800',
-    color: palette.accent,
+    color: t.accent,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
   },
-  code: { fontSize: 15, fontWeight: '800', color: palette.ink, marginTop: 2 },
+  code: { fontSize: 15, fontWeight: '800', color: t.ink, marginTop: 2 },
   codeInput: {
     fontSize: 15,
     fontWeight: '700',
-    color: palette.ink,
+    color: t.ink,
     marginTop: 2,
     padding: 0,
   },
   aura: {
-    backgroundColor: palette.ink,
+    backgroundColor: t.inverseSurface,
     borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 8,
     alignItems: 'center',
   },
-  auraLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 9, fontWeight: '700' },
-  auraScore: { color: palette.white, fontSize: 16, fontWeight: '900' },
+  auraLabel: { color: t.onInverseMuted, fontSize: 9, fontWeight: '700' },
+  auraScore: { color: t.onInverseSurface, fontSize: 16, fontWeight: '900' },
   matrix: { flex: 1, minHeight: 0, paddingHorizontal: 10, gap: 8, paddingBottom: 4 },
   row: { flex: 1, flexDirection: 'row', gap: 8, minHeight: 0 },
   holdBar: {
@@ -335,10 +334,10 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingVertical: 12,
     paddingHorizontal: 14,
-    backgroundColor: palette.ink,
+    backgroundColor: t.inverseSurface,
   },
-  holdTitle: { color: palette.white, fontWeight: '800', fontSize: 14 },
-  holdSub: { color: 'rgba(255,255,255,0.65)', fontSize: 11, marginTop: 3 },
+  holdTitle: { color: t.onInverseSurface, fontWeight: '800', fontSize: 14 },
+  holdSub: { color: t.onInverseMuted, fontSize: 11, marginTop: 3 },
   mixRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -346,65 +345,50 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     marginBottom: 6,
   },
-  mixLabel: { fontSize: 11, fontWeight: '700', color: palette.muted, marginRight: 2 },
+  mixLabel: { fontSize: 11, fontWeight: '700', color: t.muted, marginRight: 2 },
   mixChip: {
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
-    backgroundColor: palette.soft,
+    backgroundColor: t.soft,
     borderWidth: 1,
-    borderColor: palette.border,
+    borderColor: t.border,
   },
-  mixChipOn: { backgroundColor: palette.ink, borderColor: palette.ink },
-  mixChipText: { fontSize: 11, fontWeight: '700', color: palette.ink },
-  mixChipTextOn: { color: palette.white },
+  mixChipOn: { backgroundColor: t.inverseSurface, borderColor: t.inverseSurface },
+  mixChipText: { fontSize: 11, fontWeight: '700', color: t.ink },
+  mixChipTextOn: { color: t.onInverseSurface },
   tools: { flexDirection: 'row', gap: 8, paddingHorizontal: 12, marginBottom: 6 },
   toolBtn: {
     flex: 1,
-    backgroundColor: palette.soft,
+    backgroundColor: t.soft,
     borderRadius: 10,
     paddingVertical: 10,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: palette.border,
+    borderColor: t.border,
   },
-  toolText: { fontWeight: '700', color: palette.ink, fontSize: 12 },
-  bottomNav: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    paddingHorizontal: 28,
-    paddingTop: 6,
-    paddingBottom: 14,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: palette.border,
-    backgroundColor: palette.white,
-  },
-  navSide: { width: 80, alignItems: 'center', gap: 2, paddingBottom: 4 },
-  navIcon: { fontSize: 18, color: palette.muted },
-  navLabel: { fontSize: 11, fontWeight: '600', color: palette.muted },
-  navActive: { color: palette.accent },
+  toolText: { fontWeight: '700', color: t.ink, fontSize: 12 },
   visionSheet: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: palette.white,
+    backgroundColor: t.surfaces.base,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 16,
     gap: 8,
     borderTopWidth: 1,
-    borderColor: palette.border,
+    borderColor: t.border,
   },
-  visionTitle: { fontWeight: '800', fontSize: 16, color: palette.ink },
-  visionHint: { fontSize: 12, color: palette.muted, lineHeight: 17 },
+  visionTitle: { fontWeight: '800', fontSize: 16, color: t.ink },
+  visionHint: { fontSize: 12, color: t.muted, lineHeight: 17 },
   visionInput: {
     minHeight: 80,
     borderWidth: 1,
-    borderColor: palette.border,
+    borderColor: t.border,
     borderRadius: 12,
     padding: 10,
-    color: palette.ink,
+    color: t.ink,
   },
 });

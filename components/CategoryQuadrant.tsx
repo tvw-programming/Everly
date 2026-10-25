@@ -1,3 +1,7 @@
+import type { EverlyTheme } from '@/lib/theme/buildTheme';
+import { LEGEND_SURFACE } from '@/lib/theme/tokens';
+import { useTheme } from '@/lib/theme/ThemeContext';
+import { useThemedStyles } from '@/lib/theme/useThemedStyles';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useState } from 'react';
 
@@ -9,13 +13,17 @@ import { CATEGORY_LABELS, SUBCATEGORY_LABELS } from '@/lib/types';
 type Props = {
   category: TaskCategory;
   accent: string;
+  /** Tinted fill for this category's card */
+  container?: string;
   tasks: ReminderTask[];
   onToggle: (id: string, completed: boolean) => void;
 };
 
 const TOP_N = 2;
 
-export function CategoryQuadrant({ category, accent, tasks, onToggle }: Props) {
+export function CategoryQuadrant({ category, accent, container, tasks, onToggle }: Props) {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [sheetOpen, setSheetOpen] = useState(false);
   const active = tasks.filter((t) => !t.completed);
   const done = tasks.filter((t) => t.completed).length;
@@ -23,7 +31,12 @@ export function CategoryQuadrant({ category, accent, tasks, onToggle }: Props) {
   const overflow = Math.max(0, active.length - TOP_N);
 
   return (
-    <View style={[styles.panel, { borderTopColor: accent }]}>
+    <View
+      style={[
+        styles.panel,
+        { borderTopColor: accent, backgroundColor: container ?? LEGEND_SURFACE[theme.mode] },
+      ]}
+    >
       <View style={styles.panelHeader}>
         <View style={styles.headerLeft}>
           <View style={[styles.dot, { backgroundColor: accent }]} />
@@ -99,16 +112,17 @@ export function CategoryQuadrant({ category, accent, tasks, onToggle }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (t: EverlyTheme) =>
+  StyleSheet.create({
   panel: {
     flex: 1,
     minHeight: 0,
-    backgroundColor: palette.white,
+    backgroundColor: t.surfaces.base,
     borderRadius: 16,
     borderTopWidth: 3,
     padding: 10,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.border,
+    borderColor: t.border,
     shadowColor: '#1C1C1E',
     shadowOpacity: 0.06,
     shadowRadius: 8,
@@ -123,9 +137,9 @@ const styles = StyleSheet.create({
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dot: { width: 8, height: 8, borderRadius: 4 },
-  panelTitle: { fontSize: 13, fontWeight: '800', color: palette.ink },
-  counts: { fontSize: 10, color: palette.muted, fontWeight: '600' },
-  empty: { fontSize: 12, color: palette.muted, fontStyle: 'italic', paddingVertical: 8 },
+  panelTitle: { fontSize: 13, fontWeight: '800', color: t.ink },
+  counts: { fontSize: 10, color: t.muted, fontWeight: '600' },
+  empty: { fontSize: 12, color: t.muted, fontStyle: 'italic', paddingVertical: 8 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 },
   ring: {
     width: 22,
@@ -135,11 +149,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  tick: { color: palette.white, fontSize: 11, fontWeight: '800' },
+  tick: { color: t.onAccent, fontSize: 11, fontWeight: '800' },
   rowBody: { flex: 1, minWidth: 0 },
-  time: { fontSize: 13, fontWeight: '800', color: palette.ink },
-  title: { fontSize: 12, fontWeight: '600', color: palette.ink },
-  meta: { fontSize: 10, color: palette.muted },
+  time: { fontSize: 13, fontWeight: '800', color: t.ink },
+  title: { fontSize: 12, fontWeight: '600', color: t.ink },
+  meta: { fontSize: 10, color: t.muted },
   moreBtn: { alignSelf: 'flex-start', paddingTop: 2 },
   moreText: { fontSize: 11, fontWeight: '700' },
   sheetBackdrop: {
@@ -148,20 +162,20 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: palette.white,
+    backgroundColor: t.surfaces.base,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
     maxHeight: '70%',
     gap: 4,
   },
-  sheetTitle: { fontSize: 18, fontWeight: '800', marginBottom: 8, color: palette.ink },
+  sheetTitle: { fontSize: 18, fontWeight: '800', marginBottom: 8, color: t.ink },
   closeBtn: {
     marginTop: 12,
-    backgroundColor: palette.soft,
+    backgroundColor: t.soft,
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: 'center',
   },
-  closeText: { fontWeight: '700', color: palette.ink },
+  closeText: { fontWeight: '700', color: t.ink },
 });

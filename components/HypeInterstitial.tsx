@@ -1,6 +1,9 @@
+import type { EverlyTheme } from '@/lib/theme/buildTheme';
+import { impact } from '@/lib/haptics';
+import { useTheme } from '@/lib/theme/ThemeContext';
+import { useThemedStyles } from '@/lib/theme/useThemedStyles';
 import { useEffect } from 'react';
 import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import * as Haptics from 'expo-haptics';
 import * as Speech from 'expo-speech';
 
 import { palette } from '@/constants/Colors';
@@ -13,6 +16,7 @@ type Props = {
 };
 
 export function HypeInterstitial({ task, onDismiss }: Props) {
+  const styles = useThemedStyles(createStyles);
   useEffect(() => {
     if (!task) return;
     const line = truncateScript(buildHypeScript(task), 12);
@@ -22,11 +26,11 @@ export function HypeInterstitial({ task, onDismiss }: Props) {
     if (Platform.OS !== 'web') {
       void (async () => {
         try {
-          await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          impact('medium');
           await new Promise((r) => setTimeout(r, 420));
-          await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          impact('light');
           await new Promise((r) => setTimeout(r, 420));
-          await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          impact('medium');
         } catch {
           // haptics optional
         }
@@ -67,7 +71,8 @@ export function HypeInterstitial({ task, onDismiss }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (t: EverlyTheme) =>
+  StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(15,20,22,0.72)',
@@ -78,7 +83,7 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     maxWidth: 360,
-    backgroundColor: palette.white,
+    backgroundColor: t.surfaces.base,
     borderRadius: 20,
     padding: 22,
     gap: 10,
@@ -86,19 +91,19 @@ const styles = StyleSheet.create({
   kicker: {
     fontSize: 11,
     fontWeight: '800',
-    color: palette.accent,
+    color: t.accent,
     textTransform: 'uppercase',
     letterSpacing: 0.7,
   },
-  title: { fontSize: 20, fontWeight: '800', color: palette.ink },
-  body: { fontSize: 15, lineHeight: 22, color: palette.muted },
+  title: { fontSize: 20, fontWeight: '800', color: t.ink },
+  body: { fontSize: 15, lineHeight: 22, color: t.muted },
   skip: {
     alignSelf: 'flex-end',
     marginTop: 8,
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 10,
-    backgroundColor: palette.soft,
+    backgroundColor: t.soft,
   },
-  skipText: { fontWeight: '700', color: palette.ink },
+  skipText: { fontWeight: '700', color: t.ink },
 });

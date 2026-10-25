@@ -1,3 +1,6 @@
+import type { EverlyTheme } from '@/lib/theme/buildTheme';
+import { useTheme } from '@/lib/theme/ThemeContext';
+import { useThemedStyles } from '@/lib/theme/useThemedStyles';
 import { useEffect, useRef } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, View } from 'react-native';
 
@@ -11,6 +14,7 @@ type Props = {
 };
 
 export function AmbientAvatar({ state, onPress, onLongPress }: Props) {
+  const styles = useThemedStyles(createStyles);
   const pulse = useRef(new Animated.Value(0)).current;
   const glow = useRef(new Animated.Value(0.35)).current;
 
@@ -84,7 +88,8 @@ export function AmbientAvatar({ state, onPress, onLongPress }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (t: EverlyTheme) =>
+  StyleSheet.create({
   wrap: {
     width: 72,
     height: 72,
@@ -97,15 +102,15 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: palette.accent,
+    backgroundColor: t.accent,
   },
   core: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: palette.white,
+    backgroundColor: t.surfaces.base,
     borderWidth: 2,
-    borderColor: palette.accentDark,
+    borderColor: t.accentDark,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -113,6 +118,6 @@ const styles = StyleSheet.create({
     width: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: palette.accent,
+    backgroundColor: t.accent,
   },
 });

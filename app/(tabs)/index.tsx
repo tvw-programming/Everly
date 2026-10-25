@@ -1,4 +1,7 @@
-import { useFocusEffect } from '@react-navigation/native';
+import type { EverlyTheme } from '@/lib/theme/buildTheme';
+import { useTheme } from '@/lib/theme/ThemeContext';
+import { useThemedStyles } from '@/lib/theme/useThemedStyles';
+import { Link, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -7,6 +10,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AmbientAvatar } from '@/components/AmbientAvatar';
 import { CategoryQuadrant } from '@/components/CategoryQuadrant';
@@ -16,7 +20,7 @@ import { PhoneShell } from '@/components/PhoneShell';
 import { SyncScoreBadge } from '@/components/SyncScoreBadge';
 import { VoiceCapture } from '@/components/VoiceCapture';
 import { WarmInboundBubble } from '@/components/WarmInboundBubble';
-import { categoryAccent, palette } from '@/constants/Colors';
+import { categoryColors } from '@/lib/theme/categories';
 import {
   bumpSync,
   claimHypeDelivery,
@@ -42,6 +46,7 @@ import {
   buildRitualScript,
   buildStressAck,
 } from '@/lib/companion/scripts';
+import type { CompanionLine } from '@/lib/companion/scripts';
 import type { CompanionMood, CompanionVisualState, SyncScore } from '@/lib/companion/types';
 import type { ParsedTaskDraft } from '@/lib/parser';
 import { setAuraScore } from '@/lib/manifestation/storage';
@@ -52,19 +57,20 @@ import {
   sortByPriority,
 } from '@/lib/schedule';
 import { scheduleReminderNotification } from '@/lib/notifications';
-import { useRootNavigation } from '@/lib/navigation';
 import { loadReminders, upsertMany, upsertReminder } from '@/lib/storage';
 import type { ReminderTask, TaskCategory } from '@/lib/types';
 
-const CATEGORIES: TaskCategory[] = ['personal', 'social', 'professional'];
+const CATEGORIES: TaskCategory[] = ['personal', 'social', 'professional', 'financial'];
 
 export default function RemindersDashboard() {
-  const navigation = useRootNavigation();
+  const styles = useThemedStyles(createStyles);
+  const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const [reminders, setReminders] = useState<ReminderTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [avatarState, setAvatarState] = useState<CompanionVisualState>('idle');
-  const [inboundScript, setInboundScript] = useState<string | null>(null);
+  const [inboundScript, setInboundScript] = useState<CompanionLine | string | null>(null);
   const [listening, setListening] = useState(false);
   const [mood, setMood] = useState<CompanionMood>('grounded');
   const [hypeTask, setHypeTask] = useState<ReminderTask | null>(null);
@@ -168,7 +174,7 @@ export default function RemindersDashboard() {
     const h = new Date().getHours();
     if (h >= 0 && h < 5 && !loading) {
       setMood('soothing');
-      setInboundScript((prev) => prev ?? buildLateNightBoundary());
+      setInboundScript((prev: CompanionLine | string | null) => prev ?? buildLateNightBoundary());
     }
   }, [loading]);
 
@@ -178,11 +184,18 @@ export default function RemindersDashboard() {
       personal: [],
       social: [],
       professional: [],
+      financial: [],
     };
     for (const r of today) map[r.category].push(r);
     for (const c of CATEGORIES) map[c] = map[c].sort(sortByPriority);
     return map;
   }, [reminders]);
+
+  /** A category with nothing scheduled today is left off the board entirely. */
+  const visibleCategories = useMemo(
+    () => CATEGORIES.filter((cat) => byCategory[cat].some((t) => !t.completed)),
+    [byCategory]
+  );
 
   async function draftsToTasks(items: ParsedTaskDraft[]): Promise<ReminderTask[]> {
     const created: ReminderTask[] = items.map((item) => {
@@ -264,11 +277,15 @@ export default function RemindersDashboard() {
   return (
     <PhoneShell>
       <View style={styles.root}>
-        <View style={styles.header}>
-          <Text style={styles.headerDate}>{formatHeaderDate()}</Text>
-          <Text style={styles.headerSub}>
-            Companion · mood {mood} · zero-scroll board
-          </Text>
+        <View style={[styles.header, { paddingTop: 18 + insets.top }]}>
+          <View style={styles.headerRow}>
+            <Text style={styles.headerDate}>{formatHeaderDate()}</Text>
+            <Link href="/settings" asChild>
+              <Pressable style={styles.headerAction} accessibilityLabel="Theme settings">
+                <Text style={styles.headerActionIcon}>⚙</Text>
+              </Pressable>
+            </Link>
+          </View>
         </View>
 
         <View style={styles.presence}>
@@ -295,7 +312,7 @@ export default function RemindersDashboard() {
         <View style={styles.board}>
           {loading ? (
             <View style={styles.center}>
-              <ActivityIndicator color={palette.accent} />
+              <ActivityIndicator color={theme.accent} />
             </View>
           ) : error ? (
             <View style={styles.center}>
@@ -310,11 +327,12 @@ export default function RemindersDashboard() {
               </Pressable>
             </View>
           ) : (
-            CATEGORIES.map((cat) => (
+            visibleCategories.map((cat) => (
               <CategoryQuadrant
                 key={cat}
                 category={cat}
-                accent={categoryAccent[cat]}
+                accent={categoryColors(cat, theme.mode).accent}
+
                 tasks={byCategory[cat]}
                 onToggle={handleToggle}
               />
@@ -350,56 +368,36 @@ export default function RemindersDashboard() {
           }}
         />
 
-        <View style={styles.bottomNav}>
-          <View style={styles.navSide}>
-            <Text style={[styles.navIcon, styles.navActive]}>⌂</Text>
-            <Text style={[styles.navLabel, styles.navActive]}>Home</Text>
-          </View>
-          <Pressable style={styles.navSide} onPress={() => navigation.navigate('Ideas')}>
-            <Text style={styles.navIcon}>💡</Text>
-            <Text style={styles.navLabel}>Ideas</Text>
-          </Pressable>
-          <Pressable
-            style={styles.fab}
-            accessibilityLabel="Add reminder manually"
-            onPress={() => navigation.navigate('AddReminder')}
-          >
-            <Text style={styles.fabPlus}>+</Text>
-          </Pressable>
-          <Pressable
-            style={styles.navSide}
-            onPress={() => navigation.navigate('Manifestation')}
-          >
-            <Text style={styles.navIcon}>✦</Text>
-            <Text style={styles.navLabel}>Manifest</Text>
-          </Pressable>
-        </View>
       </View>
     </PhoneShell>
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: palette.white },
+const createStyles = (t: EverlyTheme) =>
+  StyleSheet.create({
+  root: { flex: 1, backgroundColor: t.surfaces.base },
   header: {
-    backgroundColor: palette.accent,
+    backgroundColor: t.accent,
     paddingHorizontal: 20,
     paddingTop: 18,
     paddingBottom: 10,
     borderBottomLeftRadius: 22,
     borderBottomRightRadius: 22,
   },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headerAction: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerActionIcon: { fontSize: 20, color: t.onAccent },
   headerDate: {
     fontSize: 22,
     fontWeight: '800',
-    color: palette.white,
+    color: t.onAccent,
     letterSpacing: -0.4,
-  },
-  headerSub: {
-    marginTop: 2,
-    fontSize: 11,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.88)',
   },
   presence: { paddingTop: 4, paddingBottom: 2, alignItems: 'center', gap: 2 },
   board: {
@@ -411,36 +409,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
-  error: { color: palette.danger, textAlign: 'center', paddingHorizontal: 16 },
-  retry: { color: palette.accentDark, fontWeight: '700' },
-  bottomNav: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 14,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: palette.border,
-    backgroundColor: palette.white,
-  },
-  navSide: { width: 64, alignItems: 'center', gap: 2, paddingBottom: 4 },
-  navIcon: { fontSize: 18, color: palette.muted },
-  navLabel: { fontSize: 11, fontWeight: '600', color: palette.muted },
-  navActive: { color: palette.accent },
-  fab: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: palette.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: -22,
-    shadowColor: palette.accentDark,
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 5,
-  },
-  fabPlus: { color: palette.white, fontSize: 30, marginTop: -2 },
+  error: { color: t.danger, textAlign: 'center', paddingHorizontal: 16 },
+  retry: { color: t.accentDark, fontWeight: '700' },
 });

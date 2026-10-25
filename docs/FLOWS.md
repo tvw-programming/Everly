@@ -8,12 +8,12 @@ Mermaid diagrams render in GitHub / most Markdown previews. File paths point at 
 
 ```mermaid
 flowchart TD
-  A[Expo AppEntry] --> B[App.tsx]
+  A[Expo entry: expo-router] --> B[app/_layout.tsx]
   B --> C[Load fonts + splash]
   B --> D[configureAudioMode native]
   B --> E[attachNotificationListeners]
   C --> F{fontsReady?}
-  F -->|yes| G[React Navigation stack: Home / AddReminder / Ideas / Manifestation]
+  F -->|yes| G[Stack: index / add-reminder / manifestation]
   F -->|timeout 2.5s| G
 ```
 

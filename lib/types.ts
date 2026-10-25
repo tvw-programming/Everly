@@ -1,4 +1,4 @@
-export type TaskCategory = 'personal' | 'social' | 'professional';
+export type TaskCategory = 'personal' | 'social' | 'professional' | 'financial';
 export type TaskPriority = 'p1' | 'p2' | 'p3';
 
 export type SubCategory =
@@ -64,12 +64,14 @@ export const CATEGORY_LABELS: Record<TaskCategory, string> = {
   personal: 'Personal',
   social: 'Social',
   professional: 'Professional',
+  financial: 'Financial',
 };
 
 export const CATEGORY_DESCRIPTIONS: Record<TaskCategory, string> = {
   personal: 'Health, hydration, manifestation',
   social: 'Outreach, publishing, ideas',
-  professional: 'Trading, engineering, business',
+  professional: 'Work, engineering, business',
+  financial: 'Money, trading, bills, investments',
 };
 
 export const SUBCATEGORY_LABELS: Record<SubCategory, string> = {

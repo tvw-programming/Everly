@@ -1,3 +1,7 @@
+import type { EverlyTheme } from '@/lib/theme/buildTheme';
+import { notify } from '@/lib/haptics';
+import { useTheme } from '@/lib/theme/ThemeContext';
+import { useThemedStyles } from '@/lib/theme/useThemedStyles';
 import { useEffect, useState } from 'react';
 import {
   ImageBackground,
@@ -8,7 +12,6 @@ import {
   Text,
   View,
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
 import * as Speech from 'expo-speech';
 
 import { palette } from '@/constants/Colors';
@@ -25,6 +28,7 @@ type Props = {
 const COMPANION_LINE = 'It is already yours. Now open your eyes and execute.';
 
 export function RealityLock({ pillar, voiceMix, onComplete, onSkip }: Props) {
+  const styles = useThemedStyles(createStyles);
   const [seconds, setSeconds] = useState(0);
   const [companionSaid, setCompanionSaid] = useState(false);
 
@@ -50,7 +54,7 @@ export function RealityLock({ pillar, voiceMix, onComplete, onSkip }: Props) {
     const end = setTimeout(async () => {
       if (Platform.OS !== 'web') {
         try {
-          await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          notify('success');
         } catch {
           // optional
         }
@@ -97,7 +101,8 @@ export function RealityLock({ pillar, voiceMix, onComplete, onSkip }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (t: EverlyTheme) =>
+  StyleSheet.create({
   root: { flex: 1, backgroundColor: '#000' },
   bg: { flex: 1 },
   overlay: {
@@ -117,12 +122,12 @@ const styles = StyleSheet.create({
     fontSize: 22,
     lineHeight: 30,
     fontWeight: '700',
-    color: palette.white,
+    color: t.onAccent,
   },
   timer: { color: 'rgba(255,255,255,0.55)', fontWeight: '700', fontSize: 13 },
   companion: {
     marginTop: 8,
-    color: palette.accent,
+    color: t.accent,
     fontSize: 15,
     fontWeight: '600',
     lineHeight: 22,
@@ -135,5 +140,5 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: 'rgba(255,255,255,0.12)',
   },
-  skipText: { color: palette.white, fontWeight: '800' },
+  skipText: { color: t.onAccent, fontWeight: '800' },
 });

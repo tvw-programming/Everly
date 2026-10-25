@@ -1,3 +1,7 @@
+import type { EverlyTheme } from '@/lib/theme/buildTheme';
+import { categoryColors } from '@/lib/theme/categories';
+import { useTheme } from '@/lib/theme/ThemeContext';
+import { useThemedStyles } from '@/lib/theme/useThemedStyles';
 import { ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { palette } from '@/constants/Colors';
@@ -11,19 +15,22 @@ type Props = {
 };
 
 export function PillarCard({ pillar, active, onPress, onLongPress }: Props) {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
+  const accent = categoryColors(pillar.id, theme.mode).accent;
   return (
     <Pressable
       onPress={onPress}
       onLongPress={onLongPress}
       style={[
         styles.card,
-        { borderColor: pillar.accent },
-        active && { shadowColor: pillar.accent, shadowOpacity: 0.55 },
+        { borderColor: accent },
+        active && { shadowColor: accent, shadowOpacity: 0.55 },
       ]}
     >
       <ImageBackground source={{ uri: pillar.stillUri }} style={styles.bg} imageStyle={styles.bgImage}>
         <View style={styles.glass}>
-          <Text style={[styles.label, { color: pillar.accent }]}>{pillar.label}</Text>
+          <Text style={[styles.label, { color: accent }]}>{pillar.label}</Text>
           {pillar.goalLabel ? <Text style={styles.goal}>{pillar.goalLabel}</Text> : null}
           <Text style={styles.affirm} numberOfLines={3}>
             {pillar.identityScript}
@@ -38,14 +45,15 @@ export function PillarCard({ pillar, active, onPress, onLongPress }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (t: EverlyTheme) =>
+  StyleSheet.create({
   card: {
     flex: 1,
     minHeight: 0,
     borderRadius: 16,
     borderWidth: 1.5,
     overflow: 'hidden',
-    backgroundColor: '#0B1220',
+    backgroundColor: t.canvas,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 4 },
     elevation: 4,
@@ -60,7 +68,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   label: { fontSize: 11, fontWeight: '900', letterSpacing: 0.8, textTransform: 'uppercase' },
-  goal: { fontSize: 12, fontWeight: '700', color: palette.white },
+  goal: { fontSize: 12, fontWeight: '700', color: t.onAccent },
   affirm: { fontSize: 11, lineHeight: 15, color: 'rgba(255,255,255,0.92)', fontWeight: '600' },
   micro: { fontSize: 9, color: 'rgba(255,255,255,0.7)', fontWeight: '600' },
   hint: { fontSize: 9, color: 'rgba(255,255,255,0.45)', marginTop: 2 },

@@ -1,19 +1,19 @@
-import { Audio, AVPlaybackStatus } from 'expo-av';
+import { AudioPlayer, AudioStatus, createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import { Platform } from 'react-native';
 
 import { resolveSoundSource } from './sounds';
 
-let currentSound: Audio.Sound | null = null;
+let currentSound: AudioPlayer | null = null;
 
 export async function configureAudioMode(): Promise<void> {
   if (Platform.OS === 'web') return;
   try {
-    await Audio.setAudioModeAsync({
-      allowsRecordingIOS: false,
-      playsInSilentModeIOS: true,
-      staysActiveInBackground: true,
-      shouldDuckAndroid: true,
-      playThroughEarpieceAndroid: false,
+    await setAudioModeAsync({
+      allowsRecording: false,
+      playsInSilentMode: true,
+      shouldPlayInBackground: true,
+      interruptionMode: 'duckOthers',
+      shouldRouteThroughEarpiece: false,
     });
   } catch {
     // Audio mode is best-effort; never block the UI on it
@@ -23,8 +23,8 @@ export async function configureAudioMode(): Promise<void> {
 export async function stopSound(): Promise<void> {
   if (!currentSound) return;
   try {
-    await currentSound.stopAsync();
-    await currentSound.unloadAsync();
+    currentSound.pause();
+    currentSound.remove();
   } catch {
     // ignore unload races
   }
@@ -36,15 +36,16 @@ export async function playSound(assetUri: string): Promise<void> {
   await stopSound();
 
   const source = resolveSoundSource(assetUri);
-  const { sound } = await Audio.Sound.createAsync(source, { shouldPlay: true, isLooping: false });
+  const sound = createAudioPlayer(source);
   currentSound = sound;
 
-  sound.setOnPlaybackStatusUpdate((status: AVPlaybackStatus) => {
+  sound.addListener('playbackStatusUpdate', (status: AudioStatus) => {
     if (!status.isLoaded) return;
-    if (status.didJustFinish) {
+    if (status.didJustFinish && currentSound === sound) {
       void stopSound();
     }
   });
+  sound.play();
 }
 
 export function isPlaying(): boolean {

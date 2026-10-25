@@ -1,3 +1,6 @@
+import type { EverlyTheme } from '@/lib/theme/buildTheme';
+import { useTheme } from '@/lib/theme/ThemeContext';
+import { useThemedStyles } from '@/lib/theme/useThemedStyles';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import * as DocumentPicker from 'expo-document-picker';
 import { useMemo, useState } from 'react';
@@ -61,6 +64,8 @@ function dateToTime(d: Date): string {
 }
 
 export function AddReminderForm({ onSave, onCancel }: Props) {
+  const styles = useThemedStyles(createStyles);
+  const { theme } = useTheme();
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -155,9 +160,10 @@ export function AddReminderForm({ onSave, onCancel }: Props) {
       copyToCacheDirectory: true,
       multiple: false,
     });
-    if (result.type !== 'success') return;
-    update('customSoundUri', result.uri);
-    update('customSoundName', result.name || 'Custom MP3');
+    if (result.canceled || !result.assets?.[0]) return;
+    const asset = result.assets[0];
+    update('customSoundUri', asset.uri);
+    update('customSoundName', asset.name || 'Custom MP3');
     update('soundKey', null);
   }
 
@@ -263,7 +269,7 @@ export function AddReminderForm({ onSave, onCancel }: Props) {
               value={draft.title}
               onChangeText={(t) => update('title', t)}
               placeholder="e.g. Take blood pressure meds"
-              placeholderTextColor={palette.muted}
+              placeholderTextColor={theme.muted}
               style={[styles.input, errors.title && styles.inputError]}
             />
             {errors.title ? <Text style={styles.error}>{errors.title}</Text> : null}
@@ -273,7 +279,7 @@ export function AddReminderForm({ onSave, onCancel }: Props) {
               value={draft.notes}
               onChangeText={(t) => update('notes', t)}
               placeholder="Extra context for yourself"
-              placeholderTextColor={palette.muted}
+              placeholderTextColor={theme.muted}
               style={[styles.input, styles.multiline]}
               multiline
               textAlignVertical="top"
@@ -323,7 +329,7 @@ export function AddReminderForm({ onSave, onCancel }: Props) {
                 value={draft.time}
                 onChangeText={(t) => update('time', t)}
                 placeholder="HH:mm"
-                placeholderTextColor={palette.muted}
+                placeholderTextColor={theme.muted}
                 style={styles.input}
               />
             )}
@@ -361,7 +367,7 @@ export function AddReminderForm({ onSave, onCancel }: Props) {
                   value={draft.date}
                   onChangeText={(t) => update('date', t)}
                   placeholder={todayISO()}
-                  placeholderTextColor={palette.muted}
+                  placeholderTextColor={theme.muted}
                   style={[styles.input, errors.date && styles.inputError]}
                 />
                 {errors.date ? <Text style={styles.error}>{errors.date}</Text> : null}
@@ -514,7 +520,7 @@ export function AddReminderForm({ onSave, onCancel }: Props) {
         ) : (
           <Pressable onPress={handleSave} style={styles.primaryBtn} disabled={saving}>
             {saving ? (
-              <ActivityIndicator color={palette.white} />
+              <ActivityIndicator color={theme.surfaces.base} />
             ) : (
               <Text style={styles.primaryBtnText}>Create Reminder</Text>
             )}
@@ -526,6 +532,7 @@ export function AddReminderForm({ onSave, onCancel }: Props) {
 }
 
 function ReviewRow({ label, value }: { label: string; value: string }) {
+  const styles = useThemedStyles(createStyles);
   return (
     <View style={styles.reviewRow}>
       <Text style={styles.reviewLabel}>{label}</Text>
@@ -534,8 +541,9 @@ function ReviewRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, width: '100%', alignSelf: 'stretch', backgroundColor: palette.paper },
+const createStyles = (t: EverlyTheme) =>
+  StyleSheet.create({
+  root: { flex: 1, width: '100%', alignSelf: 'stretch', backgroundColor: t.surfaces.base },
   steps: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -543,8 +551,8 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: palette.border,
-    backgroundColor: palette.white,
+    borderBottomColor: t.border,
+    backgroundColor: t.surfaces.base,
   },
   stepItem: { alignItems: 'center', flex: 1, gap: 6 },
   stepDot: {
@@ -552,98 +560,98 @@ const styles = StyleSheet.create({
     height: 28,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: palette.border,
+    borderColor: t.border,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: palette.mist,
+    backgroundColor: t.soft,
   },
   stepDotActive: {
-    backgroundColor: palette.teal,
-    borderColor: palette.teal,
+    backgroundColor: t.accent,
+    borderColor: t.accent,
   },
-  stepDotText: { fontSize: 12, fontWeight: '700', color: palette.muted },
-  stepDotTextActive: { color: palette.white },
-  stepLabel: { fontSize: 11, color: palette.muted, fontWeight: '600' },
-  stepLabelActive: { color: palette.tealDark },
+  stepDotText: { fontSize: 12, fontWeight: '700', color: t.muted },
+  stepDotTextActive: { color: t.onAccent },
+  stepLabel: { fontSize: 11, color: t.muted, fontWeight: '600' },
+  stepLabelActive: { color: t.accentDark },
   content: { padding: 20, paddingBottom: 40 },
   section: { gap: 10 },
   heading: {
     fontSize: 22,
     fontWeight: '700',
-    color: palette.ink,
+    color: t.ink,
     marginBottom: 8,
   },
   fieldLabel: {
     marginTop: 8,
     fontSize: 13,
     fontWeight: '700',
-    color: palette.muted,
+    color: t.muted,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
   },
   input: {
     borderWidth: 1,
-    borderColor: palette.border,
-    backgroundColor: palette.white,
+    borderColor: t.border,
+    backgroundColor: t.surfaces.base,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 16,
-    color: palette.ink,
+    color: t.ink,
   },
   multiline: { minHeight: 88 },
-  inputError: { borderColor: palette.danger },
-  error: { color: palette.danger, fontSize: 13 },
+  inputError: { borderColor: t.danger },
+  error: { color: t.danger, fontSize: 13 },
   option: {
     borderWidth: 1,
-    borderColor: palette.border,
-    backgroundColor: palette.white,
+    borderColor: t.border,
+    backgroundColor: t.surfaces.base,
     borderRadius: 14,
     padding: 14,
     gap: 4,
   },
   optionSelected: {
-    borderColor: palette.teal,
+    borderColor: t.accent,
     backgroundColor: '#E6F4F3',
   },
-  optionTitle: { fontSize: 16, fontWeight: '700', color: palette.ink },
-  optionTitleSelected: { color: palette.tealDark },
-  optionBody: { fontSize: 13, color: palette.muted, lineHeight: 18 },
-  optionBodySelected: { color: palette.tealDark },
+  optionTitle: { fontSize: 16, fontWeight: '700', color: t.ink },
+  optionTitleSelected: { color: t.accentDark },
+  optionBody: { fontSize: 13, color: t.muted, lineHeight: 18 },
+  optionBodySelected: { color: t.accentDark },
   timeButton: {
     alignSelf: 'flex-start',
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 10,
-    backgroundColor: palette.mist,
+    backgroundColor: t.soft,
   },
-  timeButtonText: { fontWeight: '700', color: palette.tealDark },
+  timeButtonText: { fontWeight: '700', color: t.accentDark },
   daysRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   dayChip: {
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: palette.border,
-    backgroundColor: palette.white,
+    borderColor: t.border,
+    backgroundColor: t.surfaces.base,
   },
-  dayChipOn: { backgroundColor: palette.teal, borderColor: palette.teal },
-  dayChipText: { fontWeight: '700', color: palette.ink, fontSize: 13 },
-  dayChipTextOn: { color: palette.white },
-  hint: { fontSize: 14, color: palette.muted, lineHeight: 20 },
+  dayChipOn: { backgroundColor: t.accent, borderColor: t.accent },
+  dayChipText: { fontWeight: '700', color: t.ink, fontSize: 13 },
+  dayChipTextOn: { color: t.onAccent },
+  hint: { fontSize: 14, color: t.muted, lineHeight: 20 },
   soundRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   previewBtn: {
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 10,
-    backgroundColor: palette.mist,
+    backgroundColor: t.soft,
   },
-  previewBtnText: { fontWeight: '700', color: palette.tealDark, fontSize: 13 },
+  previewBtnText: { fontWeight: '700', color: t.accentDark, fontSize: 13 },
   reviewCard: {
-    backgroundColor: palette.white,
+    backgroundColor: t.surfaces.base,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: palette.border,
+    borderColor: t.border,
     padding: 16,
     gap: 12,
   },
@@ -651,35 +659,35 @@ const styles = StyleSheet.create({
   reviewLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: palette.muted,
+    color: t.muted,
     textTransform: 'uppercase',
   },
-  reviewValue: { fontSize: 16, color: palette.ink, fontWeight: '600' },
+  reviewValue: { fontSize: 16, color: t.ink, fontWeight: '600' },
   footer: {
     flexDirection: 'row',
     gap: 12,
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: palette.border,
-    backgroundColor: palette.white,
+    borderTopColor: t.border,
+    backgroundColor: t.surfaces.base,
   },
   secondaryBtn: {
     flex: 1,
     paddingVertical: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: palette.border,
+    borderColor: t.border,
     alignItems: 'center',
   },
-  secondaryBtnText: { fontWeight: '700', color: palette.ink },
+  secondaryBtnText: { fontWeight: '700', color: t.ink },
   primaryBtn: {
     flex: 1.4,
     paddingVertical: 14,
     borderRadius: 12,
-    backgroundColor: palette.teal,
+    backgroundColor: t.accent,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 48,
   },
-  primaryBtnText: { fontWeight: '700', color: palette.white, fontSize: 16 },
+  primaryBtnText: { fontWeight: '700', color: t.onAccent, fontSize: 16 },
 });

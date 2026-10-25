@@ -1,3 +1,6 @@
+import type { EverlyTheme } from '@/lib/theme/buildTheme';
+import { useTheme } from '@/lib/theme/ThemeContext';
+import { useThemedStyles } from '@/lib/theme/useThemedStyles';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -22,6 +25,8 @@ type Props = {
 };
 
 export function DecompressionRoom({ visible, onClose, onExtract }: Props) {
+  const styles = useThemedStyles(createStyles);
+  const { theme } = useTheme();
   const [vent, setVent] = useState('');
   const [phase, setPhase] = useState<'vent' | 'validate' | 'preview'>('vent');
   const [validation, setValidation] = useState('');
@@ -88,7 +93,7 @@ export function DecompressionRoom({ visible, onClose, onExtract }: Props) {
                 style={styles.input}
                 multiline
                 placeholder="Say what is weighing on you…"
-                placeholderTextColor={palette.muted}
+                placeholderTextColor={theme.muted}
                 value={vent}
                 onChangeText={setVent}
                 textAlignVertical="top"
@@ -125,7 +130,7 @@ export function DecompressionRoom({ visible, onClose, onExtract }: Props) {
                 </Pressable>
                 <Pressable style={styles.primary} onPress={extractTasks} disabled={busy}>
                   {busy ? (
-                    <ActivityIndicator color={palette.white} />
+                    <ActivityIndicator color={theme.surfaces.base} />
                   ) : (
                     <Text style={styles.primaryText}>Make 3 tasks</Text>
                   )}
@@ -148,7 +153,7 @@ export function DecompressionRoom({ visible, onClose, onExtract }: Props) {
                 </Pressable>
                 <Pressable style={styles.primary} onPress={confirm} disabled={busy}>
                   {busy ? (
-                    <ActivityIndicator color={palette.white} />
+                    <ActivityIndicator color={theme.surfaces.base} />
                   ) : (
                     <Text style={styles.primaryText}>Park & sleep</Text>
                   )}
@@ -162,53 +167,54 @@ export function DecompressionRoom({ visible, onClose, onExtract }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (t: EverlyTheme) =>
+  StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: palette.white,
+    backgroundColor: t.surfaces.base,
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
     padding: 20,
     gap: 10,
     maxHeight: '85%',
   },
-  title: { fontSize: 20, fontWeight: '800', color: palette.ink },
-  hint: { fontSize: 13, color: palette.muted, lineHeight: 18 },
+  title: { fontSize: 20, fontWeight: '800', color: t.ink },
+  hint: { fontSize: 13, color: t.muted, lineHeight: 18 },
   input: {
     minHeight: 120,
     borderWidth: 1,
-    borderColor: palette.border,
+    borderColor: t.border,
     borderRadius: 14,
     padding: 12,
     fontSize: 15,
-    color: palette.ink,
-    backgroundColor: palette.soft,
+    color: t.ink,
+    backgroundColor: t.soft,
   },
-  validate: { fontSize: 15, lineHeight: 22, color: palette.ink, fontWeight: '500' },
-  previewLabel: { fontWeight: '800', color: palette.ink },
-  previewItem: { fontSize: 13, color: palette.ink },
+  validate: { fontSize: 15, lineHeight: 22, color: t.ink, fontWeight: '500' },
+  previewLabel: { fontWeight: '800', color: t.ink },
+  previewItem: { fontSize: 13, color: t.ink },
   row: { flexDirection: 'row', gap: 10, marginTop: 6 },
   secondary: {
     flex: 1,
     borderWidth: 1,
-    borderColor: palette.border,
+    borderColor: t.border,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
   },
-  secondaryText: { fontWeight: '700', color: palette.ink },
+  secondaryText: { fontWeight: '700', color: t.ink },
   primary: {
     flex: 1.3,
-    backgroundColor: palette.accent,
+    backgroundColor: t.accent,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 48,
   },
-  primaryText: { fontWeight: '700', color: palette.white },
+  primaryText: { fontWeight: '700', color: t.onAccent },
 });

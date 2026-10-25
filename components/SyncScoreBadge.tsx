@@ -1,3 +1,6 @@
+import type { EverlyTheme } from '@/lib/theme/buildTheme';
+import { useTheme } from '@/lib/theme/ThemeContext';
+import { useThemedStyles } from '@/lib/theme/useThemedStyles';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { palette } from '@/constants/Colors';
@@ -10,6 +13,7 @@ type Props = {
 };
 
 export function SyncScoreBadge({ score, onHydration, onMovement }: Props) {
+  const styles = useThemedStyles(createStyles);
   return (
     <View style={styles.wrap}>
       <Text style={styles.label}>
@@ -27,17 +31,18 @@ export function SyncScoreBadge({ score, onHydration, onMovement }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (t: EverlyTheme) =>
+  StyleSheet.create({
   wrap: { alignItems: 'center', gap: 4, paddingBottom: 2 },
-  label: { fontSize: 10, fontWeight: '700', color: palette.muted },
+  label: { fontSize: 10, fontWeight: '700', color: t.muted },
   row: { flexDirection: 'row', gap: 6 },
   chip: {
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 999,
-    backgroundColor: palette.soft,
+    backgroundColor: t.soft,
     borderWidth: 1,
-    borderColor: palette.border,
+    borderColor: t.border,
   },
-  chipText: { fontSize: 11, fontWeight: '700', color: palette.ink },
+  chipText: { fontSize: 11, fontWeight: '700', color: t.ink },
 });

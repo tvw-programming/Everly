@@ -1,20 +1,28 @@
+import type { EverlyTheme } from '@/lib/theme/buildTheme';
+import type { IdeaFilter } from '@/lib/ideas/types';
+import { categoryColors } from '@/lib/theme/categories';
+import { useTheme } from '@/lib/theme/ThemeContext';
+import { useThemedStyles } from '@/lib/theme/useThemedStyles';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { IDEA_CATEGORY_META, type IdeaFilter } from '@/lib/ideas/types';
 
 type Props = {
   value: IdeaFilter;
   onChange: (f: IdeaFilter) => void;
 };
 
-const FILTERS: { id: IdeaFilter; label: string; accent: string }[] = [
-  { id: 'all', label: 'All', accent: '#94A3B8' },
-  { id: 'personal', label: 'Personal', accent: IDEA_CATEGORY_META.personal.accent },
-  { id: 'social', label: 'Social', accent: IDEA_CATEGORY_META.social.accent },
-  { id: 'professional', label: 'Pro', accent: IDEA_CATEGORY_META.professional.accent },
+const FILTERS: { id: IdeaFilter; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'personal', label: 'Personal' },
+  { id: 'social', label: 'Social' },
+  { id: 'professional', label: 'Pro' },
 ];
 
 export function IdeaFilters({ value, onChange }: Props) {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
+  const chipAccent = (id: IdeaFilter) =>
+    id === 'all' ? theme.muted : categoryColors(id, theme.mode).accent;
   return (
     <View style={styles.row}>
       {FILTERS.map((f) => {
@@ -26,12 +34,14 @@ export function IdeaFilters({ value, onChange }: Props) {
             style={[
               styles.chip,
               {
-                borderColor: f.accent,
-                backgroundColor: on ? f.accent : 'transparent',
+                borderColor: chipAccent(f.id),
+                backgroundColor: on ? chipAccent(f.id) : 'transparent',
               },
             ]}
           >
-            <Text style={[styles.text, { color: on ? '#041016' : f.accent }]}>{f.label}</Text>
+            <Text style={[styles.text, { color: on ? theme.surfaces.base : chipAccent(f.id) }]}>
+              {f.label}
+            </Text>
           </Pressable>
         );
       })}
@@ -39,7 +49,8 @@ export function IdeaFilters({ value, onChange }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (t: EverlyTheme) =>
+  StyleSheet.create({
   row: { flexDirection: 'row', gap: 6, paddingHorizontal: 12 },
   chip: {
     flex: 1,

@@ -1,3 +1,6 @@
+import type { EverlyTheme } from '@/lib/theme/buildTheme';
+import { useTheme } from '@/lib/theme/ThemeContext';
+import { useThemedStyles } from '@/lib/theme/useThemedStyles';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { palette } from '@/constants/Colors';
@@ -9,6 +12,7 @@ type Props = {
 };
 
 export function EmptyState({ filter }: Props) {
+  const styles = useThemedStyles(createStyles);
   return (
     <View style={styles.wrap}>
       <View style={styles.iconBubble}>
@@ -20,7 +24,8 @@ export function EmptyState({ filter }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (t: EverlyTheme) =>
+  StyleSheet.create({
   wrap: {
     flex: 1,
     alignItems: 'center',
@@ -32,25 +37,25 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: palette.soft,
+    backgroundColor: t.soft,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 6,
   },
   glyph: {
     fontSize: 22,
-    color: palette.accent,
+    color: t.accent,
   },
   title: {
     fontSize: 17,
     fontWeight: '700',
-    color: palette.ink,
+    color: t.ink,
     textAlign: 'center',
   },
   body: {
     fontSize: 13,
     lineHeight: 18,
-    color: palette.muted,
+    color: t.muted,
     textAlign: 'center',
   },
 });

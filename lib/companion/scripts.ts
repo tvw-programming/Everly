@@ -1,6 +1,13 @@
 import type { ReminderTask } from '../types';
 import { CATEGORY_LABELS } from '../types';
+import { dayPartFor, pickGreeting } from './greetings';
 import type { CompanionMood, CompanionRitual } from './types';
+
+/**
+ * A line the companion says: `text` is shown (Marathi or Sanskrit keeps its own
+ * script), `speech` is what text-to-speech reads.
+ */
+export type CompanionLine = { text: string; speech: string };
 
 function topTitles(tasks: ReminderTask[], n = 2): string[] {
   return tasks
@@ -12,32 +19,48 @@ function topTitles(tasks: ReminderTask[], n = 2): string[] {
 export function buildRitualScript(
   ritual: CompanionRitual,
   tasks: ReminderTask[],
-  mood: CompanionMood = 'grounded'
-): string {
+  mood: CompanionMood = 'grounded',
+  opts: { now?: Date; rng?: () => number } = {}
+): CompanionLine {
+  // The greeting follows the clock, not the ritual: a tap at 3pm must not say
+  // "good morning" just because the morning ritual is the fallback.
+  const greeting = pickGreeting(dayPartFor(opts.now ?? new Date()), opts.rng);
+  const line = (body: string): CompanionLine => ({
+    text: `${greeting.text}. ${body}`,
+    speech: `${greeting.speech}. ${body}`,
+  });
   const personal = topTitles(tasks.filter((t) => t.category === 'personal'));
   const social = topTitles(tasks.filter((t) => t.category === 'social'));
   const pro = topTitles(tasks.filter((t) => t.category === 'professional'));
   const highlights = [...pro, ...personal, ...social].slice(0, 2);
   const done = tasks.filter((t) => t.completed).length;
 
-  if (ritual === 'morning') {
+  const evening = greeting.dayPart === 'evening' || greeting.dayPart === 'night';
+
+  if (!evening) {
     if (highlights.length === 0) {
-      return mood === 'soothing'
-        ? 'Good morning. The board is clear. Start with water, then we will choose one intentional win together.'
-        : 'Good morning! Your board is clear. Grab water first—then we will pick one high-leverage move.';
+      return line(
+        mood === 'soothing'
+          ? 'The board is clear. Start with water, then we will choose one intentional win together.'
+          : 'Your board is clear. Grab water first—then we will pick one high-leverage move.'
+      );
     }
     const list = highlights.join(', and ');
-    return mood === 'soothing'
-      ? `Good morning. I am with you. Today includes ${list}. Breathe, hydrate, then take the first step.`
-      : `Good morning! You have ${list} lined up. Let’s get your water in first. You’ve got this today.`;
+    return line(
+      mood === 'soothing'
+        ? `I am with you. Today includes ${list}. Breathe, hydrate, then take the first step.`
+        : `You have ${list} lined up. Let’s get your water in first. You’ve got this today.`
+    );
   }
 
   if (done === 0) {
-    return 'Evening check-in. Quiet day on the board. Rest well—I will keep tomorrow ready.';
+    return line('Quiet day on the board. Rest well—I will keep tomorrow ready.');
   }
-  return `You moved ${done} goal${done === 1 ? '' : 's'} today${
-    highlights.length ? `, and still holding ${highlights[0]}` : ''
-  }. Put the screen down, hydrate, and rest. I will watch tomorrow’s schedule.`;
+  return line(
+    `You moved ${done} goal${done === 1 ? '' : 's'} today${
+      highlights.length ? `, and still holding ${highlights[0]}` : ''
+    }. Put the screen down, hydrate, and rest. I will watch tomorrow’s schedule.`
+  );
 }
 
 export function buildReactionLine(task: ReminderTask, mood: CompanionMood = 'calm'): string {

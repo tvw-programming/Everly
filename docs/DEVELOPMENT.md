@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Node 16 LTS (repo uses legacy Expo SDK 44 tooling)
+- Node 20+ (repo uses Expo 58)
 - npm
 - Python 3.10+ for the voice router
 - Optional: Expo Go on a phone for notifications / mic / haptics
@@ -112,6 +112,5 @@ Prefer small, descriptive commits (`feat(companion):…`, `feat(manifestation):�
 ## Known limitations
 
 - Web: no Voice Echo recording; notification listeners warn; `useNativeDriver` anim warnings
-- `expo-av` deprecation toward `expo-audio` / `expo-video` (migrate later)
 - Theme provider not yet wrapping all screens that still import static `palette` — see [THEMING.md](./THEMING.md)
 - Vision Synthesizer stores prompts only

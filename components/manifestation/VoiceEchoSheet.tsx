@@ -1,3 +1,6 @@
+import type { EverlyTheme } from '@/lib/theme/buildTheme';
+import { useTheme } from '@/lib/theme/ThemeContext';
+import { useThemedStyles } from '@/lib/theme/useThemedStyles';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -8,7 +11,12 @@ import {
   Text,
   View,
 } from 'react-native';
-import { Audio } from 'expo-av';
+import {
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+  useAudioRecorder,
+} from 'expo-audio';
 
 import { palette } from '@/constants/Colors';
 import type { ManifestPillar } from '@/lib/manifestation/types';
@@ -21,7 +29,10 @@ type Props = {
 };
 
 export function VoiceEchoSheet({ pillar, visible, onClose, onSaved }: Props) {
-  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const styles = useThemedStyles(createStyles);
+  const { theme } = useTheme();
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const [recording, setRecording] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,15 +44,18 @@ export function VoiceEchoSheet({ pillar, visible, onClose, onSaved }: Props) {
     setError(null);
     setBusy(true);
     try {
-      await Audio.requestPermissionsAsync();
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
+      const permission = await requestRecordingPermissionsAsync();
+      if (!permission.granted) {
+        setError('Microphone permission is needed to record Voice Echo.');
+        return;
+      }
+      await setAudioModeAsync({
+        allowsRecording: true,
+        playsInSilentMode: true,
       });
-      const rec = new Audio.Recording();
-      await rec.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-      await rec.startAsync();
-      setRecording(rec);
+      await recorder.prepareToRecordAsync();
+      recorder.record();
+      setRecording(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not start recording');
     } finally {
@@ -53,9 +67,9 @@ export function VoiceEchoSheet({ pillar, visible, onClose, onSaved }: Props) {
     if (!recording) return;
     setBusy(true);
     try {
-      await recording.stopAndUnloadAsync();
-      const uri = recording.getURI();
-      setRecording(null);
+      await recorder.stop();
+      const uri = recorder.uri;
+      setRecording(false);
       if (uri) await onSaved(uri);
       onClose();
     } catch (e) {
@@ -85,7 +99,7 @@ export function VoiceEchoSheet({ pillar, visible, onClose, onSaved }: Props) {
             {!recording ? (
               <Pressable style={styles.primary} onPress={start} disabled={busy}>
                 {busy ? (
-                  <ActivityIndicator color={palette.white} />
+                  <ActivityIndicator color={theme.surfaces.base} />
                 ) : (
                   <Text style={styles.primaryText}>Record</Text>
                 )}
@@ -93,7 +107,7 @@ export function VoiceEchoSheet({ pillar, visible, onClose, onSaved }: Props) {
             ) : (
               <Pressable style={styles.primary} onPress={stopAndSave} disabled={busy}>
                 {busy ? (
-                  <ActivityIndicator color={palette.white} />
+                  <ActivityIndicator color={theme.surfaces.base} />
                 ) : (
                   <Text style={styles.primaryText}>Stop & Save</Text>
                 )}
@@ -106,37 +120,38 @@ export function VoiceEchoSheet({ pillar, visible, onClose, onSaved }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (t: EverlyTheme) =>
+  StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: palette.white,
+    backgroundColor: t.surfaces.base,
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
     padding: 20,
     gap: 10,
   },
-  title: { fontSize: 18, fontWeight: '800', color: palette.ink },
-  script: { fontSize: 14, lineHeight: 20, color: palette.ink, fontWeight: '600' },
-  hint: { fontSize: 12, color: palette.muted, lineHeight: 17 },
-  error: { color: palette.danger, fontSize: 13 },
+  title: { fontSize: 18, fontWeight: '800', color: t.ink },
+  script: { fontSize: 14, lineHeight: 20, color: t.ink, fontWeight: '600' },
+  hint: { fontSize: 12, color: t.muted, lineHeight: 17 },
+  error: { color: t.danger, fontSize: 13 },
   row: { flexDirection: 'row', gap: 10, marginTop: 6 },
   secondary: {
     flex: 1,
     borderWidth: 1,
-    borderColor: palette.border,
+    borderColor: t.border,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
   },
-  secondaryText: { fontWeight: '700', color: palette.ink },
+  secondaryText: { fontWeight: '700', color: t.ink },
   primary: {
     flex: 1.2,
-    backgroundColor: palette.accent,
+    backgroundColor: t.accent,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 48,
   },
-  primaryText: { fontWeight: '700', color: palette.white },
+  primaryText: { fontWeight: '700', color: t.onAccent },
 });
