@@ -55,7 +55,7 @@ Use **Expo Go** for notifications, MP3, Voice Echo recording, and haptics. Web i
 ## Project layout
 
 ```
-app/                      React Navigation screens (index, ideas, add-reminder, manifestation)
+app/                      Expo Router (index, ideas, add-reminder, manifestation)
 components/               Board, companion, ideas, manifestation, theme UI
 lib/companion/            Mood, rituals, hype, follow-up, sync
 lib/ideas/                Voice ideas vault (organize, storage, lifecycle)

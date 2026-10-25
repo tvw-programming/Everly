@@ -1,3 +1,6 @@
+import type { EverlyTheme } from '@/lib/theme/buildTheme';
+import { useTheme } from '@/lib/theme/ThemeContext';
+import { useThemedStyles } from '@/lib/theme/useThemedStyles';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -21,6 +24,7 @@ const PLACEHOLDER =
   'I have an idea for LinkedIn… Also remind me to improve the PostgreSQL connection pool tomorrow.';
 
 export function IdeaCaptureSheet({ visible, busy, onClose, onSubmit }: Props) {
+  const styles = useThemedStyles(createStyles);
   const [text, setText] = useState('');
 
   return (
@@ -68,24 +72,25 @@ export function IdeaCaptureSheet({ visible, busy, onClose, onSubmit }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (t: EverlyTheme) =>
+  StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: '#0F172A',
+    backgroundColor: t.cardBg,
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
     padding: 18,
     gap: 10,
   },
-  title: { fontSize: 18, fontWeight: '900', color: '#F8FAFC' },
-  hint: { fontSize: 12, color: '#94A3B8', lineHeight: 17 },
+  title: { fontSize: 18, fontWeight: '900', color: t.ink },
+  hint: { fontSize: 12, color: t.muted, lineHeight: 17 },
   input: {
     minHeight: 120,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.12)',
     padding: 12,
-    color: '#F8FAFC',
+    color: t.ink,
     backgroundColor: 'rgba(255,255,255,0.04)',
     fontSize: 15,
   },
@@ -98,11 +103,11 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: 'center',
   },
-  secondaryText: { color: '#E2E8F0', fontWeight: '700' },
+  secondaryText: { color: t.ink, fontWeight: '700' },
   primary: {
     flex: 1.2,
     borderRadius: 12,
-    backgroundColor: '#2DD4BF',
+    backgroundColor: t.accent,
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',

@@ -3,8 +3,10 @@
 FastAPI service that turns a raw voice transcript into structured Personal / Social / Professional tasks.
 
 ```bash
-pip install -r requirements.txt
-uvicorn app.main:app --port 18765 --reload
+# Python 3.10–3.12 (pinned pydantic has no 3.14 wheels)
+python3.12 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+.venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 18765 --reload
 ```
 
 `POST /v1/voice/parse`:

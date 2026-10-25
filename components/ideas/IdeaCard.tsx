@@ -1,3 +1,7 @@
+import type { EverlyTheme } from '@/lib/theme/buildTheme';
+import { categoryColors } from '@/lib/theme/categories';
+import { useTheme } from '@/lib/theme/ThemeContext';
+import { useThemedStyles } from '@/lib/theme/useThemedStyles';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import {
@@ -29,16 +33,19 @@ function formatDur(sec: number): string {
 }
 
 export function IdeaCard({ idea, onPress, onPlay }: Props) {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const meta = IDEA_CATEGORY_META[idea.category];
+  const category = categoryColors(idea.category, theme.mode);
 
   return (
     <Pressable
       onPress={onPress}
-      style={[styles.card, { borderLeftColor: meta.accent }]}
+      style={[styles.card, { borderLeftColor: category.accent }]}
       accessibilityLabel={`${meta.label} idea ${idea.title}`}
     >
       <View style={styles.top}>
-        <Text style={[styles.cat, { color: meta.accent }]}>
+        <Text style={[styles.cat, { color: category.accent }]}>
           {meta.icon} {meta.label} · {formatWhen(idea.createdAt)}
         </Text>
         <Text style={styles.status}>{IDEA_STATUS_LABEL[idea.status]}</Text>
@@ -67,20 +74,21 @@ export function IdeaCard({ idea, onPress, onPlay }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (t: EverlyTheme) =>
+  StyleSheet.create({
   card: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: t.soft,
     borderRadius: 14,
     padding: 12,
     borderLeftWidth: 3,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: t.border,
     gap: 4,
   },
   top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   cat: { fontSize: 11, fontWeight: '800' },
   status: { fontSize: 10, fontWeight: '700', color: 'rgba(255,255,255,0.55)' },
-  title: { fontSize: 15, fontWeight: '800', color: '#F8FAFC' },
+  title: { fontSize: 15, fontWeight: '800', color: t.ink },
   summary: { fontSize: 12, lineHeight: 17, color: 'rgba(248,250,252,0.72)' },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
   play: {
@@ -89,6 +97,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
   },
-  playText: { fontSize: 11, fontWeight: '700', color: '#E2E8F0' },
+  playText: { fontSize: 11, fontWeight: '700', color: t.ink },
   tags: { flex: 1, fontSize: 10, color: 'rgba(148,163,184,0.95)', fontWeight: '600' },
 });

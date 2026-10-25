@@ -1,5 +1,9 @@
+import type { EverlyTheme } from '@/lib/theme/buildTheme';
+import { useTheme } from '@/lib/theme/ThemeContext';
+import { useThemedStyles } from '@/lib/theme/useThemedStyles';
 import { useEffect, useRef } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useDockInset } from '@/components/glass/GlassDock';
 
 export type MicState = 'idle' | 'listening' | 'processing' | 'saved';
 
@@ -9,6 +13,8 @@ type Props = {
 };
 
 export function IdeaMicFab({ state, onPress }: Props) {
+  const styles = useThemedStyles(createStyles);
+  const dockInset = useDockInset();
   const pulse = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -64,7 +70,7 @@ export function IdeaMicFab({ state, onPress }: Props) {
           : 'Capture idea';
 
   return (
-    <View style={styles.wrap} pointerEvents="box-none">
+    <View style={[styles.wrap, { bottom: dockInset + 8 }]} pointerEvents="box-none">
       <Text style={styles.label}>{label}</Text>
       <Animated.View style={{ transform: [{ scale }] }}>
         <Pressable
@@ -79,7 +85,8 @@ export function IdeaMicFab({ state, onPress }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (t: EverlyTheme) =>
+  StyleSheet.create({
   wrap: {
     position: 'absolute',
     right: 18,

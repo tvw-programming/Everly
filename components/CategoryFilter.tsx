@@ -1,6 +1,9 @@
+import type { EverlyTheme } from '@/lib/theme/buildTheme';
+import { useTheme } from '@/lib/theme/ThemeContext';
+import { useThemedStyles } from '@/lib/theme/useThemedStyles';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { categoryAccent, palette } from '@/constants/Colors';
+import { categoryColors } from '@/lib/theme/categories';
 import type { CategoryFilter as Filter, TaskCategory } from '@/lib/types';
 import { CATEGORY_LABELS } from '@/lib/types';
 
@@ -13,11 +16,13 @@ type Props = {
 };
 
 export function CategoryFilter({ value, onChange, counts }: Props) {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   return (
     <View style={styles.grid}>
       {TABS.map((id) => {
         const selected = value === id;
-        const accent = categoryAccent[id];
+        const { accent, container } = categoryColors(id, theme.mode);
         return (
           <Pressable
             key={id}
@@ -37,7 +42,8 @@ export function CategoryFilter({ value, onChange, counts }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (t: EverlyTheme) =>
+  StyleSheet.create({
   grid: {
     flexDirection: 'row',
     gap: 8,
@@ -51,17 +57,17 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: palette.border,
-    backgroundColor: palette.white,
+    borderColor: t.border,
+    backgroundColor: t.surfaces.base,
     gap: 2,
   },
   label: {
     fontSize: 12,
     fontWeight: '700',
-    color: palette.ink,
+    color: t.ink,
     textAlign: 'center',
   },
-  labelSelected: { color: palette.white },
-  count: { fontSize: 11, fontWeight: '600', color: palette.muted },
+  labelSelected: { color: t.onAccent },
+  count: { fontSize: 11, fontWeight: '600', color: t.muted },
   countSelected: { color: 'rgba(255,255,255,0.85)' },
 });

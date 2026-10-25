@@ -1,6 +1,12 @@
-import { useFocusEffect } from '@react-navigation/native';
-import { useCallback, useMemo, useState } from 'react';
+import type { EverlyTheme } from '@/lib/theme/buildTheme';
+import { useTheme } from '@/lib/theme/ThemeContext';
+import { useThemedStyles } from '@/lib/theme/useThemedStyles';
+import { Link, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { useDockInset } from '@/components/glass/GlassDock';
 import * as Speech from 'expo-speech';
 
 import { PhoneShell } from '@/components/PhoneShell';
@@ -25,14 +31,23 @@ import { scheduleReminderNotification } from '@/lib/notifications';
 import { upsertReminder } from '@/lib/storage';
 import type { ReminderTask, TaskCategory } from '@/lib/types';
 import { updatePillar } from '@/lib/manifestation/storage';
-import { useRootNavigation } from '@/lib/navigation';
 
 export default function IdeasScreen() {
-  const navigation = useRootNavigation();
+  const styles = useThemedStyles(createStyles);
+  const insets = useSafeAreaInsets();
+  const dockInset = useDockInset();
   const [ideas, setIdeas] = useState<IdeaNote[]>([]);
   const [filter, setFilter] = useState<IdeaFilter>('all');
   const [selected, setSelected] = useState<IdeaNote | null>(null);
   const [captureOpen, setCaptureOpen] = useState(false);
+  const { capture } = useLocalSearchParams<{ capture?: string }>();
+
+  useEffect(() => {
+    if (capture === '1') {
+      setCaptureOpen(true);
+      router.setParams({ capture: undefined });
+    }
+  }, [capture]);
   const [micState, setMicState] = useState<MicState>('idle');
   const [busy, setBusy] = useState(false);
   const [inbound, setInbound] = useState<string | null>(null);
@@ -114,13 +129,13 @@ export default function IdeasScreen() {
     setIdeas(next);
     setSelected(null);
     setInbound(`Pinned to ${pillar} manifestation pillar.`);
-    navigation.navigate('Manifestation');
+    router.push('/manifestation');
   }
 
   return (
     <PhoneShell>
       <View style={styles.root}>
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: 16 + insets.top }]}>
           <Text style={styles.kicker}>Ideas · Voice-first Second Brain</Text>
           <Text style={styles.insight}>{insight}</Text>
         </View>
@@ -130,7 +145,7 @@ export default function IdeasScreen() {
         <FlatList
           data={visible}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: dockInset + 72 }]}
           style={styles.listFlex}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
@@ -197,57 +212,26 @@ export default function IdeasScreen() {
           onFinished={() => setInbound(null)}
         />
 
-        <View style={styles.bottomNav}>
-          <Pressable style={styles.navSide} onPress={() => navigation.navigate('Home')}>
-            <Text style={styles.navIcon}>⌂</Text>
-            <Text style={styles.navLabel}>Home</Text>
-          </Pressable>
-          <View style={styles.navSide}>
-            <Text style={[styles.navIcon, styles.navActive]}>💡</Text>
-            <Text style={[styles.navLabel, styles.navActive]}>Ideas</Text>
-          </View>
-          <Pressable
-            style={styles.navSide}
-            onPress={() => navigation.navigate('Manifestation')}
-          >
-            <Text style={styles.navIcon}>✦</Text>
-            <Text style={styles.navLabel}>Manifest</Text>
-          </Pressable>
-        </View>
       </View>
     </PhoneShell>
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#070B12' },
+const createStyles = (t: EverlyTheme) =>
+  StyleSheet.create({
+  root: { flex: 1, backgroundColor: t.canvas },
   header: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 10, gap: 4 },
   kicker: {
     fontSize: 11,
     fontWeight: '900',
-    color: '#2DD4BF',
+    color: t.accent,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
   },
-  insight: { fontSize: 14, fontWeight: '600', color: '#E2E8F0', lineHeight: 20 },
+  insight: { fontSize: 14, fontWeight: '600', color: t.ink, lineHeight: 20 },
   listFlex: { flex: 1, minHeight: 0 },
   list: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 100, gap: 10 },
   empty: { padding: 28, alignItems: 'center', gap: 6 },
-  emptyTitle: { color: '#F8FAFC', fontWeight: '800' },
-  emptyBody: { color: '#94A3B8', textAlign: 'center', fontSize: 13 },
-  bottomNav: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    paddingHorizontal: 28,
-    paddingTop: 8,
-    paddingBottom: 14,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(255,255,255,0.08)',
-    backgroundColor: 'rgba(7,11,18,0.92)',
-  },
-  navSide: { width: 80, alignItems: 'center', gap: 2, paddingBottom: 4 },
-  navIcon: { fontSize: 18, color: '#64748B' },
-  navLabel: { fontSize: 11, fontWeight: '600', color: '#64748B' },
-  navActive: { color: '#2DD4BF' },
+  emptyTitle: { color: t.ink, fontWeight: '800' },
+  emptyBody: { color: t.muted, textAlign: 'center', fontSize: 13 },
 });

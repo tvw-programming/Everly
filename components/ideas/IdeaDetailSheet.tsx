@@ -1,3 +1,7 @@
+import type { EverlyTheme } from '@/lib/theme/buildTheme';
+import { categoryColors } from '@/lib/theme/categories';
+import { useTheme } from '@/lib/theme/ThemeContext';
+import { useThemedStyles } from '@/lib/theme/useThemedStyles';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import * as Speech from 'expo-speech';
 
@@ -28,8 +32,11 @@ export function IdeaDetailSheet({
   onDelete,
   onArchive,
 }: Props) {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   if (!idea) return null;
   const meta = IDEA_CATEGORY_META[idea.category];
+  const category = categoryColors(idea.category, theme.mode);
 
   return (
     <Modal visible animationType="slide" onRequestClose={onClose}>
@@ -38,7 +45,7 @@ export function IdeaDetailSheet({
           <Pressable onPress={onClose}>
             <Text style={styles.back}>← Close</Text>
           </Pressable>
-          <Text style={[styles.badge, { color: meta.accent }]}>
+          <Text style={[styles.badge, { color: category.accent }]}>
             {meta.label} · {IDEA_KIND_LABEL[idea.kind]}
           </Text>
         </View>
@@ -144,34 +151,35 @@ export function IdeaDetailSheet({
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#070B12' },
+const createStyles = (t: EverlyTheme) =>
+  StyleSheet.create({
+  root: { flex: 1, backgroundColor: t.canvas },
   header: {
     paddingTop: 54,
     paddingHorizontal: 16,
     paddingBottom: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
+    borderBottomColor: t.border,
     gap: 4,
   },
-  back: { color: '#5EEAD4', fontWeight: '700' },
+  back: { color: t.accent, fontWeight: '700' },
   badge: { fontSize: 12, fontWeight: '800' },
   body: { padding: 16, paddingBottom: 24, gap: 6 },
-  title: { fontSize: 22, fontWeight: '900', color: '#F8FAFC', marginTop: 4 },
+  title: { fontSize: 22, fontWeight: '900', color: t.ink, marginTop: 4 },
   meta: { fontSize: 12, color: 'rgba(248,250,252,0.55)', marginBottom: 8 },
   wave: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: t.soft,
     borderRadius: 12,
     padding: 12,
     marginVertical: 8,
   },
-  waveTitle: { color: '#F8FAFC', fontWeight: '800' },
+  waveTitle: { color: t.ink, fontWeight: '800' },
   waveSub: { color: 'rgba(248,250,252,0.55)', fontSize: 12, marginTop: 2 },
   section: {
     marginTop: 12,
     fontSize: 11,
     fontWeight: '900',
-    color: '#5EEAD4',
+    color: t.accent,
     textTransform: 'uppercase',
     letterSpacing: 0.7,
   },
@@ -204,14 +212,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: t.border,
   },
-  statusText: { color: '#E2E8F0', fontSize: 11, fontWeight: '700' },
+  statusText: { color: t.ink, fontSize: 11, fontWeight: '700' },
   actions: {
     padding: 12,
     gap: 8,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(255,255,255,0.08)',
+    borderTopColor: t.border,
   },
   primary: {
     backgroundColor: '#0EA5A8',
@@ -227,16 +235,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
   },
-  secondaryText: { color: '#F8FAFC', fontWeight: '700' },
+  secondaryText: { color: t.ink, fontWeight: '700' },
   row: { flexDirection: 'row', gap: 8 },
   ghost: {
     flex: 1,
     alignItems: 'center',
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: t.soft,
   },
-  ghostText: { color: '#CBD5E1', fontWeight: '700' },
+  ghostText: { color: t.muted, fontWeight: '700' },
   danger: {
     flex: 1,
     alignItems: 'center',

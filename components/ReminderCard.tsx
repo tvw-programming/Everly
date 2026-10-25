@@ -1,6 +1,9 @@
+import type { EverlyTheme } from '@/lib/theme/buildTheme';
+import { useTheme } from '@/lib/theme/ThemeContext';
+import { useThemedStyles } from '@/lib/theme/useThemedStyles';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { categoryAccent, palette } from '@/constants/Colors';
+import { categoryColors } from '@/lib/theme/categories';
 import { formatTimeDisplay } from '@/lib/schedule';
 import type { Reminder } from '@/lib/types';
 
@@ -10,7 +13,9 @@ type Props = {
 };
 
 export function ReminderCard({ reminder, onToggleComplete }: Props) {
-  const accent = categoryAccent[reminder.category];
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
+  const { accent, container } = categoryColors(reminder.category, theme.mode);
   const done = Boolean(reminder.completed);
 
   return (
@@ -46,12 +51,13 @@ export function ReminderCard({ reminder, onToggleComplete }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (t: EverlyTheme) =>
+  StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: palette.card,
+    backgroundColor: t.cardBg,
     borderRadius: 18,
     paddingVertical: 14,
     paddingHorizontal: 14,
@@ -63,24 +69,24 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 3,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.border,
+    borderColor: t.border,
   },
   cardDone: {
     opacity: 0.55,
-    backgroundColor: palette.soft,
+    backgroundColor: t.soft,
   },
   check: {
     width: 28,
     height: 28,
     borderRadius: 14,
     borderWidth: 2,
-    borderColor: palette.border,
+    borderColor: t.border,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: palette.white,
+    backgroundColor: t.surfaces.base,
   },
   checkMark: {
-    color: palette.white,
+    color: t.onAccent,
     fontSize: 14,
     fontWeight: '800',
     marginTop: -1,
@@ -93,20 +99,20 @@ const styles = StyleSheet.create({
   time: {
     fontSize: 20,
     fontWeight: '800',
-    color: palette.ink,
+    color: t.ink,
     letterSpacing: -0.3,
   },
   title: {
     fontSize: 15,
     fontWeight: '600',
-    color: palette.ink,
+    color: t.ink,
   },
   notes: {
     fontSize: 12,
-    color: palette.muted,
+    color: t.muted,
   },
   struck: {
     textDecorationLine: 'line-through',
-    color: palette.muted,
+    color: t.muted,
   },
 });

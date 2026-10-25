@@ -1,4 +1,4 @@
-import { Audio } from 'expo-av';
+import { AudioPlayer, createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import { Platform } from 'react-native';
 import * as Speech from 'expo-speech';
 
@@ -13,32 +13,44 @@ const TONE_ASSETS: Record<number, number> = {
   432: require('../../assets/manifestation/tones/hz888.wav'),
 };
 
-let voiceSound: Audio.Sound | null = null;
-let toneSound: Audio.Sound | null = null;
+let voiceSound: AudioPlayer | null = null;
+let toneSound: AudioPlayer | null = null;
+/**
+ * Bumped by every stop. A play that started before the bump is stale: leaving
+ * the screen mid-play must not leave an orphaned player running (and must not
+ * hand a released player to the next stop).
+ */
+let generation = 0;
+
+/** Release a player once; a released one throws if touched again. */
+function release(player: AudioPlayer | null): void {
+  if (!player) return;
+  try {
+    player.pause();
+  } catch {
+    // already released
+  }
+  try {
+    player.remove();
+  } catch {
+    // already released
+  }
+}
 let webToneCtx: AudioContext | null = null;
 let webOsc: OscillatorNode | null = null;
 let webGain: GainNode | null = null;
 
-export async function stopManifestAudio(): Promise<void> {
-  Speech.stop();
-  if (voiceSound) {
-    try {
-      await voiceSound.stopAsync();
-      await voiceSound.unloadAsync();
-    } catch {
-      // ignore
-    }
-    voiceSound = null;
+/** Release everything without claiming a new generation. */
+function releaseAll(): void {
+  try {
+    Speech.stop();
+  } catch {
+    // ignore
   }
-  if (toneSound) {
-    try {
-      await toneSound.stopAsync();
-      await toneSound.unloadAsync();
-    } catch {
-      // ignore
-    }
-    toneSound = null;
-  }
+  release(voiceSound);
+  voiceSound = null;
+  release(toneSound);
+  toneSound = null;
   if (webOsc) {
     try {
       webOsc.stop();
@@ -56,6 +68,12 @@ export async function stopManifestAudio(): Promise<void> {
     }
     webGain = null;
   }
+}
+
+/** Stop playback and invalidate any play still in flight. */
+export async function stopManifestAudio(): Promise<void> {
+  generation += 1;
+  releaseAll();
 }
 
 function startWebTone(hz: number, volume: number) {
@@ -77,14 +95,17 @@ function startWebTone(hz: number, volume: number) {
   webOsc.start();
 }
 
-async function playNativeTone(hz: number, volume: number, loop: boolean) {
+function playNativeTone(hz: number, volume: number, loop: boolean, era: number) {
   const asset = TONE_ASSETS[hz] ?? TONE_ASSETS[432];
   if (!asset) return;
-  const { sound } = await Audio.Sound.createAsync(asset, {
-    shouldPlay: true,
-    isLooping: loop,
-    volume: Math.max(0.05, Math.min(1, volume)),
-  });
+  const sound = createAudioPlayer(asset);
+  if (era !== generation) {
+    release(sound);
+    return;
+  }
+  sound.loop = loop;
+  sound.volume = Math.max(0.05, Math.min(1, volume));
+  sound.play();
   toneSound = sound;
 }
 
@@ -93,32 +114,51 @@ export async function playPillarAffirmation(
   pillar: ManifestPillar,
   voiceMix = 0.3
 ): Promise<void> {
-  await stopManifestAudio();
-  await Audio.setAudioModeAsync({
-    playsInSilentModeIOS: true,
-    allowsRecordingIOS: false,
-    staysActiveInBackground: false,
-  }).catch(() => undefined);
+  // Claim the slot before awaiting anything, so a stop that lands mid-play
+  // (leaving the tab, say) is detected rather than racing us.
+  const era = ++generation;
+  releaseAll();
 
-  const ambientVol = 1 - voiceMix;
+  // Playback is best-effort: a failure here must never reach the caller as an
+  // unhandled rejection, because every call site fires it with `void`.
+  try {
+    await setAudioModeAsync({
+      playsInSilentMode: true,
+      allowsRecording: false,
+      shouldPlayInBackground: false,
+    }).catch(() => undefined);
 
-  if (Platform.OS === 'web') {
-    startWebTone(pillar.frequencyHz, ambientVol);
-  } else {
-    await playNativeTone(pillar.frequencyHz, ambientVol, true);
-  }
+    if (era !== generation) return;
 
-  if (pillar.voiceUri) {
-    const { sound } = await Audio.Sound.createAsync(
-      { uri: pillar.voiceUri },
-      { shouldPlay: true, volume: voiceMix, isLooping: true }
-    );
-    voiceSound = sound;
-  } else {
-    Speech.speak(pillar.voiceScript || pillar.identityScript, {
-      rate: 0.9,
-      pitch: 1.0,
-    });
+    const ambientVol = 1 - voiceMix;
+
+    if (Platform.OS === 'web') {
+      startWebTone(pillar.frequencyHz, ambientVol);
+    } else {
+      playNativeTone(pillar.frequencyHz, ambientVol, true, era);
+    }
+
+    if (era !== generation) return;
+
+    if (pillar.voiceUri) {
+      const sound = createAudioPlayer({ uri: pillar.voiceUri });
+      if (era !== generation) {
+        release(sound);
+        return;
+      }
+      sound.loop = true;
+      sound.volume = voiceMix;
+      sound.play();
+      voiceSound = sound;
+    } else {
+      Speech.speak(pillar.voiceScript || pillar.identityScript, {
+        rate: 0.9,
+        pitch: 1.0,
+      });
+    }
+  } catch {
+    // leave the deck silent rather than crashing the screen
+    await stopManifestAudio();
   }
 }
 
