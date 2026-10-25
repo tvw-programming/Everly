@@ -65,20 +65,31 @@ export default function AlarmsScreen() {
           </View>
           <Link href="/alarm-reliability" asChild>
             <Pressable>
-              <Text style={[styles.link, { color: theme.accent }]}>Reliability</Text>
+              <Text style={StyleSheet.flatten([styles.link, { color: theme.accent }])}>
+                Reliability
+              </Text>
             </Pressable>
           </Link>
         </View>
 
         {banner ? (
-          <Text style={[styles.banner, { color: theme.muted, backgroundColor: theme.soft }]}>
+          <Text
+            style={StyleSheet.flatten([
+              styles.banner,
+              { color: theme.muted, backgroundColor: theme.soft },
+            ])}
+          >
             {banner}
           </Text>
         ) : null}
 
         <Link href="/alarm-edit" asChild>
-          <Pressable style={[styles.addBtn, { backgroundColor: theme.accent }]}>
-            <Text style={[styles.addText, { color: theme.onAccent }]}>+ Add Reminder</Text>
+          <Pressable
+            style={StyleSheet.flatten([styles.addBtn, { backgroundColor: theme.accent }])}
+          >
+            <Text style={StyleSheet.flatten([styles.addText, { color: theme.onAccent }])}>
+              + Add Reminder
+            </Text>
           </Pressable>
         </Link>
 
