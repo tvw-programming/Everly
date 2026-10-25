@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Node 20+ (repo uses Expo 58)
+- Node 16 LTS (repo uses legacy Expo SDK 44 tooling)
 - npm
 - Python 3.10+ for the voice router
 - Optional: Expo Go on a phone for notifications / mic / haptics

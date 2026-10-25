@@ -1,4 +1,4 @@
-import { Link, useFocusEffect } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -52,12 +52,14 @@ import {
   sortByPriority,
 } from '@/lib/schedule';
 import { scheduleReminderNotification } from '@/lib/notifications';
+import { useRootNavigation } from '@/lib/navigation';
 import { loadReminders, upsertMany, upsertReminder } from '@/lib/storage';
 import type { ReminderTask, TaskCategory } from '@/lib/types';
 
 const CATEGORIES: TaskCategory[] = ['personal', 'social', 'professional'];
 
 export default function RemindersDashboard() {
+  const navigation = useRootNavigation();
   const [reminders, setReminders] = useState<ReminderTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -353,23 +355,24 @@ export default function RemindersDashboard() {
             <Text style={[styles.navIcon, styles.navActive]}>⌂</Text>
             <Text style={[styles.navLabel, styles.navActive]}>Home</Text>
           </View>
-          <Link href="/ideas" asChild>
-            <Pressable style={styles.navSide}>
-              <Text style={styles.navIcon}>💡</Text>
-              <Text style={styles.navLabel}>Ideas</Text>
-            </Pressable>
-          </Link>
-          <Link href="/add-reminder" asChild>
-            <Pressable style={styles.fab} accessibilityLabel="Add reminder manually">
-              <Text style={styles.fabPlus}>+</Text>
-            </Pressable>
-          </Link>
-          <Link href="/manifestation" asChild>
-            <Pressable style={styles.navSide}>
-              <Text style={styles.navIcon}>✦</Text>
-              <Text style={styles.navLabel}>Manifest</Text>
-            </Pressable>
-          </Link>
+          <Pressable style={styles.navSide} onPress={() => navigation.navigate('Ideas')}>
+            <Text style={styles.navIcon}>💡</Text>
+            <Text style={styles.navLabel}>Ideas</Text>
+          </Pressable>
+          <Pressable
+            style={styles.fab}
+            accessibilityLabel="Add reminder manually"
+            onPress={() => navigation.navigate('AddReminder')}
+          >
+            <Text style={styles.fabPlus}>+</Text>
+          </Pressable>
+          <Pressable
+            style={styles.navSide}
+            onPress={() => navigation.navigate('Manifestation')}
+          >
+            <Text style={styles.navIcon}>✦</Text>
+            <Text style={styles.navLabel}>Manifest</Text>
+          </Pressable>
         </View>
       </View>
     </PhoneShell>

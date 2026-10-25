@@ -1,14 +1,15 @@
-import { router } from 'expo-router';
 import { Alert, StyleSheet, View } from 'react-native';
 
 import { AddReminderForm } from '@/components/AddReminderForm';
 import { palette } from '@/constants/Colors';
 import { scheduleReminderNotification } from '@/lib/notifications';
 import { createId } from '@/lib/schedule';
+import { useRootNavigation } from '@/lib/navigation';
 import { upsertReminder } from '@/lib/storage';
 import type { Reminder } from '@/lib/types';
 
 export default function AddReminderScreen() {
+  const navigation = useRootNavigation();
   async function handleSave(
     payload: Omit<Reminder, 'id' | 'createdAt' | 'notificationId'>
   ) {
@@ -21,7 +22,7 @@ export default function AddReminderScreen() {
     try {
       reminder.notificationId = await scheduleReminderNotification(reminder);
       await upsertReminder(reminder);
-      router.back();
+      navigation.goBack();
     } catch (e) {
       Alert.alert(
         'Could not save',
@@ -33,7 +34,7 @@ export default function AddReminderScreen() {
 
   return (
     <View style={styles.root}>
-      <AddReminderForm onSave={handleSave} onCancel={() => router.back()} />
+      <AddReminderForm onSave={handleSave} onCancel={() => navigation.goBack()} />
     </View>
   );
 }

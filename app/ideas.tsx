@@ -1,4 +1,4 @@
-import { Link, router, useFocusEffect } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import * as Speech from 'expo-speech';
@@ -25,8 +25,10 @@ import { scheduleReminderNotification } from '@/lib/notifications';
 import { upsertReminder } from '@/lib/storage';
 import type { ReminderTask, TaskCategory } from '@/lib/types';
 import { updatePillar } from '@/lib/manifestation/storage';
+import { useRootNavigation } from '@/lib/navigation';
 
 export default function IdeasScreen() {
+  const navigation = useRootNavigation();
   const [ideas, setIdeas] = useState<IdeaNote[]>([]);
   const [filter, setFilter] = useState<IdeaFilter>('all');
   const [selected, setSelected] = useState<IdeaNote | null>(null);
@@ -112,7 +114,7 @@ export default function IdeasScreen() {
     setIdeas(next);
     setSelected(null);
     setInbound(`Pinned to ${pillar} manifestation pillar.`);
-    router.push('/manifestation');
+    navigation.navigate('Manifestation');
   }
 
   return (
@@ -196,22 +198,21 @@ export default function IdeasScreen() {
         />
 
         <View style={styles.bottomNav}>
-          <Link href="/" asChild>
-            <Pressable style={styles.navSide}>
-              <Text style={styles.navIcon}>⌂</Text>
-              <Text style={styles.navLabel}>Home</Text>
-            </Pressable>
-          </Link>
+          <Pressable style={styles.navSide} onPress={() => navigation.navigate('Home')}>
+            <Text style={styles.navIcon}>⌂</Text>
+            <Text style={styles.navLabel}>Home</Text>
+          </Pressable>
           <View style={styles.navSide}>
             <Text style={[styles.navIcon, styles.navActive]}>💡</Text>
             <Text style={[styles.navLabel, styles.navActive]}>Ideas</Text>
           </View>
-          <Link href="/manifestation" asChild>
-            <Pressable style={styles.navSide}>
-              <Text style={styles.navIcon}>✦</Text>
-              <Text style={styles.navLabel}>Manifest</Text>
-            </Pressable>
-          </Link>
+          <Pressable
+            style={styles.navSide}
+            onPress={() => navigation.navigate('Manifestation')}
+          >
+            <Text style={styles.navIcon}>✦</Text>
+            <Text style={styles.navLabel}>Manifest</Text>
+          </Pressable>
         </View>
       </View>
     </PhoneShell>

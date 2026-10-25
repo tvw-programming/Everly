@@ -1,6 +1,6 @@
-import { Link } from 'expo-router';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { useRootNavigation } from '@/lib/navigation';
 import { useTheme } from '@/lib/theme/ThemeContext';
 
 type Props = {
@@ -9,6 +9,7 @@ type Props = {
 
 export function BottomDock({ active }: Props) {
   const { theme } = useTheme();
+  const navigation = useRootNavigation();
 
   const color = (key: Props['active']) => (active === key ? theme.accent : theme.muted);
 
@@ -23,26 +24,23 @@ export function BottomDock({ active }: Props) {
         theme.id === 'glass' && styles.glassNav,
       ]}
     >
-      <Link href="/" asChild>
-        <Pressable style={styles.navSide}>
-          <Text style={[styles.navIcon, { color: color('home') }]}>⌂</Text>
-          <Text style={[styles.navLabel, { color: color('home') }]}>Home</Text>
-        </Pressable>
-      </Link>
+      <Pressable style={styles.navSide} onPress={() => navigation.navigate('Home')}>
+        <Text style={[styles.navIcon, { color: color('home') }]}>⌂</Text>
+        <Text style={[styles.navLabel, { color: color('home') }]}>Home</Text>
+      </Pressable>
 
-      <Link href="/ideas" asChild>
-        <Pressable style={styles.navSide}>
-          <Text style={[styles.navIcon, { color: color('ideas') }]}>💡</Text>
-          <Text style={[styles.navLabel, { color: color('ideas') }]}>Ideas</Text>
-        </Pressable>
-      </Link>
+      <Pressable style={styles.navSide} onPress={() => navigation.navigate('Ideas')}>
+        <Text style={[styles.navIcon, { color: color('ideas') }]}>💡</Text>
+        <Text style={[styles.navLabel, { color: color('ideas') }]}>Ideas</Text>
+      </Pressable>
 
-      <Link href="/manifestation" asChild>
-        <Pressable style={styles.navSide}>
-          <Text style={[styles.navIcon, { color: color('manifest') }]}>✦</Text>
-          <Text style={[styles.navLabel, { color: color('manifest') }]}>Manifest</Text>
-        </Pressable>
-      </Link>
+      <Pressable
+        style={styles.navSide}
+        onPress={() => navigation.navigate('Manifestation')}
+      >
+        <Text style={[styles.navIcon, { color: color('manifest') }]}>✦</Text>
+        <Text style={[styles.navLabel, { color: color('manifest') }]}>Manifest</Text>
+      </Pressable>
     </View>
   );
 }

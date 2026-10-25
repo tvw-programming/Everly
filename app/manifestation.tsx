@@ -1,4 +1,5 @@
-import { Link, router, useLocalSearchParams } from 'expo-router';
+import { useRoute } from '@react-navigation/native';
+import type { RouteProp } from '@react-navigation/native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -16,9 +17,11 @@ import {
   updatePillar,
 } from '@/lib/manifestation/storage';
 import type { ManifestDeckState, ManifestPillar, ManifestPillarId } from '@/lib/manifestation/types';
+import { useRootNavigation, type RootStackParamList } from '@/lib/navigation';
 
 export default function ManifestationScreen() {
-  const params = useLocalSearchParams<{ pillar?: string }>();
+  const navigation = useRootNavigation();
+  const { params } = useRoute<RouteProp<RootStackParamList, 'Manifestation'>>();
   const [deck, setDeck] = useState<ManifestDeckState | null>(null);
   const [activeId, setActiveId] = useState<ManifestPillarId | null>(null);
   const [lockPillar, setLockPillar] = useState<ManifestPillar | null>(null);
@@ -42,7 +45,7 @@ export default function ManifestationScreen() {
 
   useEffect(() => {
     if (!deck) return;
-    const p = params.pillar as ManifestPillarId | undefined;
+    const p = params?.pillar;
     if (p && deck.pillars[p]) {
       setActiveId(p);
       setInbound(deck.pillars[p].companionHook);
@@ -52,7 +55,7 @@ export default function ManifestationScreen() {
       );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- welcome once when deck loads
-  }, [params.pillar, deck?.identityCode]);
+  }, [params?.pillar, deck?.identityCode]);
 
   const ambient = useMemo(() => {
     if (!deck || !activeId) return '#070B12';
@@ -213,18 +216,14 @@ export default function ManifestationScreen() {
         />
 
         <View style={styles.bottomNav}>
-          <Link href="/" asChild>
-            <Pressable style={styles.navSide}>
-              <Text style={styles.navIcon}>⌂</Text>
-              <Text style={styles.navLabel}>Home</Text>
-            </Pressable>
-          </Link>
-          <Link href="/ideas" asChild>
-            <Pressable style={styles.navSide}>
-              <Text style={styles.navIcon}>💡</Text>
-              <Text style={styles.navLabel}>Ideas</Text>
-            </Pressable>
-          </Link>
+          <Pressable style={styles.navSide} onPress={() => navigation.navigate('Home')}>
+            <Text style={styles.navIcon}>⌂</Text>
+            <Text style={styles.navLabel}>Home</Text>
+          </Pressable>
+          <Pressable style={styles.navSide} onPress={() => navigation.navigate('Ideas')}>
+            <Text style={styles.navIcon}>💡</Text>
+            <Text style={styles.navLabel}>Ideas</Text>
+          </Pressable>
           <View style={styles.navSide}>
             <Text style={[styles.navIcon, styles.navActive]}>✦</Text>
             <Text style={[styles.navLabel, styles.navActive]}>Manifest</Text>
@@ -237,7 +236,7 @@ export default function ManifestationScreen() {
           onSkip={() => setLockPillar(null)}
           onComplete={() => {
             setLockPillar(null);
-            router.replace('/');
+            navigation.replace('Home');
           }}
         />
 

@@ -155,10 +155,9 @@ export function AddReminderForm({ onSave, onCancel }: Props) {
       copyToCacheDirectory: true,
       multiple: false,
     });
-    if (result.canceled || !result.assets?.[0]) return;
-    const asset = result.assets[0];
-    update('customSoundUri', asset.uri);
-    update('customSoundName', asset.name || 'Custom MP3');
+    if (result.type !== 'success') return;
+    update('customSoundUri', result.uri);
+    update('customSoundName', result.name || 'Custom MP3');
     update('soundKey', null);
   }
 

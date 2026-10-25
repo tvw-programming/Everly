@@ -8,8 +8,7 @@ import type { Reminder } from './types';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
+    shouldShowAlert: true,
     shouldPlaySound: false,
     shouldSetBadge: false,
   }),
@@ -55,10 +54,7 @@ export async function scheduleReminderNotification(reminder: Reminder): Promise<
       },
       sound: false,
     },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DATE,
-      date: next,
-    },
+    trigger: next,
   });
 
   return id;

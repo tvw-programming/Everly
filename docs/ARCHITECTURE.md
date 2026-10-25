@@ -4,8 +4,8 @@
 
 | Layer | Choice |
 | --- | --- |
-| App shell | Expo SDK ~58 + Expo Router (file-based routes) |
-| UI | React Native 0.88 / React 19, `react-native-web` for browser preview |
+| App shell | Expo SDK 44 + React Navigation stack |
+| UI | React Native 0.64 / React 17, `react-native-web` for browser preview |
 | Persistence | `@react-native-async-storage/async-storage` (+ `localStorage` / in-memory fallbacks on web) |
 | Audio | `expo-av` (playback + Voice Echo record), `expo-speech` (TTS fallback / companion lines) |
 | Haptics / push | `expo-haptics`, `expo-notifications` (device builds) |
@@ -43,20 +43,18 @@ If the API is unreachable, `lib/api.ts` falls back to `lib/parser.ts` (on-device
 
 | Route file | Path | Role |
 | --- | --- | --- |
-| `app/_layout.tsx` | — | Fonts, splash, audio mode, notification listeners, Stack |
+| `App.tsx` | — | Fonts, splash, audio mode, notification listeners, navigation stack |
 | `app/index.tsx` | `/` | Zero-scroll Home: quadrants, companion, mic FAB, dock |
 | `app/add-reminder.tsx` | `/add-reminder` | Manual reminder create (modal on native) |
 | `app/ideas.tsx` | `/ideas` | Voice-first Ideas vault |
 | `app/manifestation.tsx` | `/manifestation` | Manifestation Command Deck |
-| `app/+html.tsx` | web only | HTML shell / CSS reset for web |
-| `app/+not-found.tsx` | * | 404 |
 
 Navigation chrome: Home / `+` / Manifest (inline dock on Home & Manifest; shared `BottomDock` helper also available).
 
 ## Module map
 
 ```
-app/                         Expo Router screens
+app/                         React Navigation screens
 components/                  Presentational + interactive UI
   AmbientAvatar.tsx          Companion presence (idle/listen/speak/react)
   VoiceCapture.tsx           Second Brain sheet (parse → confirm)
