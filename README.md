@@ -20,7 +20,7 @@ Zero-scroll executive companion + **Manifestation Command Deck** for high-veloci
 | [docs/DEVELOPMENT.md](./docs/DEVELOPMENT.md) | Local setup & QA checklist |
 | [docs/THEMING.md](./docs/THEMING.md) | Light / Dark / 3D Glass themes |
 
-Roadmaps: [`plans/`](./plans/) · Backend: [`backend/README.md`](./backend/README.md)
+Roadmaps: [`plans/`](./plans/) (includes [Android alarm APK plan](./plans/android_alarm_reminder_native.md)) · Backend: [`backend/README.md`](./backend/README.md)
 
 ## Quick start
 

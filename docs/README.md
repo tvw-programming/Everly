@@ -17,5 +17,6 @@ Product roadmaps (intent vs implementation):
 - [`../plans/companion_relational_engine.md`](../plans/companion_relational_engine.md)
 - [`../plans/manifestation_command_deck.md`](../plans/manifestation_command_deck.md)
 - [`../plans/ideas_voice_vault.md`](../plans/ideas_voice_vault.md)
+- [`../plans/android_alarm_reminder_native.md`](../plans/android_alarm_reminder_native.md) — personal APK alarm + full-song FGS playback
 
 Backend quick notes: [`../backend/README.md`](../backend/README.md)
