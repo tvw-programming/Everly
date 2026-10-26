@@ -83,47 +83,57 @@ object AlarmScheduler {
   }
 
   /**
-   * After a fire, queue next occurrence for recurring alarms so music keeps
-   * working without waiting for JS to open. One-time alarms are disabled.
+   * After a fire, queue the next occurrence for recurring alarms so music keeps
+   * working without waiting for JS to open. A series that has ended is retired.
    */
   fun advanceAfterFire(ctx: Context, payload: JSONObject) {
-    val freq = payload.optString("frequency", "daily")
-    if (freq == "once") {
+    reschedule(ctx, payload, System.currentTimeMillis())
+  }
+
+  /**
+   * Move a stored alarm to its next occurrence after [fromMillis], or retire it
+   * when the series has ended. Shared by the post-fire advance and by clock or
+   * time-zone changes, so both go through one recurrence implementation.
+   */
+  fun reschedule(ctx: Context, payload: JSONObject, fromMillis: Long) {
+    val weekdays = mutableListOf<Int>()
+    payload.optJSONArray("weekdays")?.let { arr ->
+      for (i in 0 until arr.length()) weekdays.add(arr.optInt(i))
+    }
+
+    val next = NextOccurrence.compute(
+      frequency = payload.optString("frequency", "daily"),
+      hour24 = payload.optInt("hour24", 9),
+      minute = payload.optInt("minute", 0),
+      weekdays = weekdays,
+      endDateMillis = endOfDayMillis(payload.optString("endDate", "")),
+      fromMillis = fromMillis
+    )
+
+    if (next == null) {
       payload.put("enabled", false)
       AlarmStore.put(ctx, payload)
       cancel(ctx, payload.optString("id"))
       return
     }
 
-    val hour24 = payload.optInt("hour24", 9)
-    val minute = payload.optInt("minute", 0)
-    val weekdays = mutableListOf<Int>()
-    val arr = payload.optJSONArray("weekdays")
-    if (arr != null) {
-      for (i in 0 until arr.length()) weekdays.add(arr.optInt(i))
-    }
+    payload.put("nextFireAt", next)
+    payload.put("enabled", true)
+    schedule(ctx, payload)
+  }
 
+  /** "YYYY-MM-DD" to the last millisecond of that day, so the final day still rings. */
+  private fun endOfDayMillis(ymd: String?): Long? {
+    if (ymd.isNullOrBlank() || ymd == "null") return null
+    val parts = ymd.split("-")
+    if (parts.size != 3) return null
+    val year = parts[0].toIntOrNull() ?: return null
+    val month = parts[1].toIntOrNull() ?: return null
+    val day = parts[2].toIntOrNull() ?: return null
     val cal = java.util.Calendar.getInstance()
-    // Search up to 8 days ahead for the next slot strictly after now
-    for (i in 1..8) {
-      cal.timeInMillis = System.currentTimeMillis()
-      cal.add(java.util.Calendar.DAY_OF_YEAR, i)
-      cal.set(java.util.Calendar.HOUR_OF_DAY, hour24)
-      cal.set(java.util.Calendar.MINUTE, minute)
-      cal.set(java.util.Calendar.SECOND, 0)
-      cal.set(java.util.Calendar.MILLISECOND, 0)
-
-      if (freq == "weekly") {
-        // JS weekdays: 0=Sun … 6=Sat; Calendar: SUNDAY=1 … SATURDAY=7
-        val jsDay = cal.get(java.util.Calendar.DAY_OF_WEEK) - 1
-        if (weekdays.isNotEmpty() && !weekdays.contains(jsDay)) continue
-      }
-
-      payload.put("nextFireAt", cal.timeInMillis)
-      payload.put("enabled", true)
-      schedule(ctx, payload)
-      return
-    }
+    cal.set(year, month - 1, day, 23, 59, 59)
+    cal.set(java.util.Calendar.MILLISECOND, 999)
+    return cal.timeInMillis
   }
 
   /** Where the system sends the user if they tap the status-bar alarm icon. */
