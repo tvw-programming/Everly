@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { GlassSurface } from '@/components/glass/GlassSurface';
 import { CategoryLegend } from '@/components/settings/CategoryLegend';
+import { ReliabilitySection } from '@/components/settings/ReliabilitySection';
 import { SwatchRow } from '@/components/settings/SwatchRow';
 import { PRIMARY_SWATCHES, SECONDARY_SWATCHES } from '@/lib/theme/accents';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -31,7 +32,7 @@ export default function SettingsScreen() {
           onPress={() => router.back()}
         />
         <Text variant="headlineSmall" style={[styles.title, { color: theme.ink }]}>
-          Theme settings
+          Settings
         </Text>
       </View>
 
@@ -103,6 +104,11 @@ export default function SettingsScreen() {
       <Button mode="outlined" style={styles.reset} onPress={resetTheme}>
         Reset to defaults
       </Button>
+
+      <Text variant="labelLarge" style={[styles.section, { color: theme.muted }]}>
+        Reminder reliability
+      </Text>
+      <ReliabilitySection />
     </ScrollView>
   );
 }

@@ -20,14 +20,12 @@ type IconSpec = { ios: string; android: string; glyph: string };
 
 const ICONS: Record<string, IconSpec> = {
   index: { ios: 'house.fill', android: 'home', glyph: '⌂' },
-  alarms: { ios: 'alarm.fill', android: 'alarm', glyph: '⏰' },
   ideas: { ios: 'lightbulb.fill', android: 'lightbulb', glyph: '💡' },
   manifestation: { ios: 'sparkles', android: 'auto_awesome', glyph: '✦' },
 };
 
 const LABELS: Record<string, string> = {
   index: 'Home',
-  alarms: 'Alarms',
   ideas: 'Ideas',
   manifestation: 'Manifest',
 };

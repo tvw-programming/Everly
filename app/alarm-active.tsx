@@ -39,7 +39,7 @@ export default function AlarmActiveScreen() {
         await syncAlarmsOnLaunch();
       }
     }
-    router.replace('/alarms');
+    router.replace('/');
   }
 
   return (

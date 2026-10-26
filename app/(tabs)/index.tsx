@@ -1,30 +1,41 @@
 import type { EverlyTheme } from '@/lib/theme/buildTheme';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useThemedStyles } from '@/lib/theme/useThemedStyles';
-import { Link, useFocusEffect } from 'expo-router';
+import { Link, router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AddReminderFab } from '@/components/AddReminderFab';
 import { AmbientAvatar } from '@/components/AmbientAvatar';
-import { CategoryQuadrant } from '@/components/CategoryQuadrant';
+import { CategoryAlarmGroup } from '@/components/alarms/CategoryAlarmGroup';
 import { DecompressionRoom } from '@/components/DecompressionRoom';
 import { HypeInterstitial } from '@/components/HypeInterstitial';
 import { PhoneShell } from '@/components/PhoneShell';
 import { SyncScoreBadge } from '@/components/SyncScoreBadge';
-import { VoiceCapture } from '@/components/VoiceCapture';
 import { WarmInboundBubble } from '@/components/WarmInboundBubble';
-import { categoryColors } from '@/lib/theme/categories';
+import { useDockInset } from '@/components/glass/GlassDock';
+import {
+  clearMissedAlarms,
+  loadMissedAlarms,
+  syncAlarmsOnLaunch,
+  type MissedAlarm,
+} from '@/lib/alarms/bootstrap';
+import { groupAlarmsByCategory, visibleAlarmCategories } from '@/lib/alarms/group';
+import { cancelAlarmSchedule, syncAlarmSchedule, testAlarm } from '@/lib/alarms/native';
+import { deleteAlarm, upsertAlarm } from '@/lib/alarms/storage';
+import type { AlarmReminder } from '@/lib/alarms/types';
 import {
   bumpSync,
   claimHypeDelivery,
-  completionsThisHour,
   findHypeCandidates,
   inferMood,
   loadSyncScore,
@@ -33,16 +44,12 @@ import {
   persistBio,
   pickRitualForNow,
   popDueMemories,
-  recordCompletion,
-  scheduleFollowUpFast,
   shouldDeliverRitual,
   snapshotFromSignals,
 } from '@/lib/companion/engine';
 import {
   buildCoHabitLine,
-  buildFollowUpScript,
   buildLateNightBoundary,
-  buildReactionLine,
   buildRitualScript,
   buildStressAck,
 } from '@/lib/companion/scripts';
@@ -50,28 +57,23 @@ import type { CompanionLine } from '@/lib/companion/scripts';
 import type { CompanionMood, CompanionVisualState, SyncScore } from '@/lib/companion/types';
 import type { ParsedTaskDraft } from '@/lib/parser';
 import { setAuraScore } from '@/lib/manifestation/storage';
-import {
-  createId,
-  formatHeaderDate,
-  isScheduledToday,
-  sortByPriority,
-} from '@/lib/schedule';
+import { createId, formatHeaderDate } from '@/lib/schedule';
 import { scheduleReminderNotification } from '@/lib/notifications';
-import { loadReminders, upsertMany, upsertReminder } from '@/lib/storage';
-import type { ReminderTask, TaskCategory } from '@/lib/types';
-
-const CATEGORIES: TaskCategory[] = ['personal', 'social', 'professional', 'financial'];
+import { loadReminders, upsertMany } from '@/lib/storage';
+import type { ReminderTask } from '@/lib/types';
 
 export default function RemindersDashboard() {
   const styles = useThemedStyles(createStyles);
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
+  const dockInset = useDockInset();
+  const [alarms, setAlarms] = useState<AlarmReminder[]>([]);
+  const [missed, setMissed] = useState<MissedAlarm[]>([]);
   const [reminders, setReminders] = useState<ReminderTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [avatarState, setAvatarState] = useState<CompanionVisualState>('idle');
   const [inboundScript, setInboundScript] = useState<CompanionLine | string | null>(null);
-  const [listening, setListening] = useState(false);
   const [mood, setMood] = useState<CompanionMood>('grounded');
   const [hypeTask, setHypeTask] = useState<ReminderTask | null>(null);
   const [decompressOpen, setDecompressOpen] = useState(false);
@@ -85,17 +87,23 @@ export default function RemindersDashboard() {
   const refresh = useCallback(async () => {
     try {
       setError(null);
-      const [list, score] = await Promise.all([loadReminders(), loadSyncScore()]);
+      const [{ alarms: alarmList, missed: missedList }, list, score] = await Promise.all([
+        syncAlarmsOnLaunch(),
+        loadReminders(),
+        loadSyncScore(),
+      ]);
+      setAlarms(alarmList);
+      setMissed(missedList);
       setReminders(list);
       setSync(score);
       const aura = Math.min(
         100,
-        55 + score.hydrationSyncs + score.movementSyncs * 2 + list.filter((t) => t.completed).length
+        55 + score.hydrationSyncs + score.movementSyncs * 2 + alarmList.filter((a) => a.enabled).length
       );
       await setAuraScore(aura);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load reminders');
-      setReminders([]);
+      setAlarms([]);
     } finally {
       setLoading(false);
     }
@@ -113,8 +121,8 @@ export default function RemindersDashboard() {
 
   useEffect(() => {
     if (hypeTask) return;
-    setAvatarState(listening ? 'listening' : inboundScript ? 'speaking' : 'idle');
-  }, [listening, inboundScript, hypeTask]);
+    setAvatarState(inboundScript ? 'speaking' : 'idle');
+  }, [inboundScript, hypeTask]);
 
   // Rituals
   useEffect(() => {
@@ -178,24 +186,8 @@ export default function RemindersDashboard() {
     }
   }, [loading]);
 
-  const byCategory = useMemo(() => {
-    const today = reminders.filter((r) => r.enabled && isScheduledToday(r.schedule));
-    const map: Record<TaskCategory, ReminderTask[]> = {
-      personal: [],
-      social: [],
-      professional: [],
-      financial: [],
-    };
-    for (const r of today) map[r.category].push(r);
-    for (const c of CATEGORIES) map[c] = map[c].sort(sortByPriority);
-    return map;
-  }, [reminders]);
-
-  /** A category with nothing scheduled today is left off the board entirely. */
-  const visibleCategories = useMemo(
-    () => CATEGORIES.filter((cat) => byCategory[cat].some((t) => !t.completed)),
-    [byCategory]
-  );
+  const byCategory = useMemo(() => groupAlarmsByCategory(alarms), [alarms]);
+  const visibleCategories = useMemo(() => visibleAlarmCategories(byCategory), [byCategory]);
 
   async function draftsToTasks(items: ParsedTaskDraft[]): Promise<ReminderTask[]> {
     const created: ReminderTask[] = items.map((item) => {
@@ -228,43 +220,34 @@ export default function RemindersDashboard() {
     return created;
   }
 
-  async function handleToggle(id: string, completed: boolean) {
-    const current = reminders.find((r) => r.id === id);
-    if (!current) return;
-    const list = await upsertReminder({ ...current, completed });
-    setReminders(list);
-    if (completed) {
-      const count = await recordCompletion();
-      const bio = snapshotFromSignals({ completionsLastHour: count });
-      await persistBio(bio);
-      const m = inferMood(bio);
-      setMood(m);
-      setAvatarState('reacting');
-      setInboundScript(buildReactionLine({ ...current, completed: true }, m));
-      await scheduleFollowUpFast(current, buildFollowUpScript(current));
-      setTimeout(() => setAvatarState('idle'), 700);
-    }
+  async function onToggleAlarm(alarm: AlarmReminder, enabled: boolean) {
+    const next = { ...alarm, enabled };
+    next.nextFireAt = await syncAlarmSchedule(next);
+    setAlarms(await upsertAlarm(next));
   }
 
-  async function handleVoiceParsed(items: ParsedTaskDraft[], raw?: string) {
-    if (raw) {
-      const bio = moodFromTranscript(raw);
-      await persistBio(bio);
-      const m = inferMood(bio);
-      setMood(m);
-      if (m === 'soothing' && bio.signals.includes('rapid_speech')) {
-        setInboundScript(buildStressAck(raw));
-      }
-    }
-    const created = await draftsToTasks(items);
-    const list = await upsertMany(created);
-    setReminders(list);
-    setAvatarState('reacting');
-    setInboundScript(
-      created.length === 1
-        ? `Got it—I routed that into ${created[0].category}.`
-        : `Routed ${created.length} thoughts into your buckets.`
+  async function onTestAlarm(alarm: AlarmReminder) {
+    const res = await testAlarm(alarm);
+    Alert.alert(
+      res.mode === 'native' ? 'Test alarm queued' : 'Preview playing',
+      res.mode === 'native'
+        ? 'The native alarm service will fire shortly.'
+        : 'Playing a bundled preview (4s). Full closed-app playback needs the APK.'
     );
+  }
+
+  function onDeleteAlarm(alarm: AlarmReminder) {
+    Alert.alert('Delete reminder?', alarm.title, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          await cancelAlarmSchedule(alarm.id);
+          setAlarms(await deleteAlarm(alarm.id));
+        },
+      },
+    ]);
   }
 
   async function onCoHabit(kind: 'hydration' | 'movement') {
@@ -281,7 +264,7 @@ export default function RemindersDashboard() {
           <View style={styles.headerRow}>
             <Text style={styles.headerDate}>{formatHeaderDate()}</Text>
             <Link href="/settings" asChild>
-              <Pressable style={styles.headerAction} accessibilityLabel="Theme settings">
+              <Pressable style={styles.headerAction} accessibilityLabel="Settings">
                 <Text style={styles.headerActionIcon}>⚙</Text>
               </Pressable>
             </Link>
@@ -309,36 +292,74 @@ export default function RemindersDashboard() {
           />
         </View>
 
-        <View style={styles.board}>
-          {loading ? (
-            <View style={styles.center}>
-              <ActivityIndicator color={theme.accent} />
-            </View>
-          ) : error ? (
-            <View style={styles.center}>
-              <Text style={styles.error}>{error}</Text>
-              <Pressable
-                onPress={() => {
-                  setLoading(true);
-                  void refresh();
-                }}
-              >
-                <Text style={styles.retry}>Try again</Text>
-              </Pressable>
-            </View>
-          ) : (
-            visibleCategories.map((cat) => (
-              <CategoryQuadrant
-                key={cat}
-                category={cat}
-                accent={categoryColors(cat, theme.mode).accent}
+        {loading ? (
+          <View style={styles.center}>
+            <ActivityIndicator color={theme.accent} />
+          </View>
+        ) : error ? (
+          <View style={styles.center}>
+            <Text style={styles.error}>{error}</Text>
+            <Pressable
+              onPress={() => {
+                setLoading(true);
+                void refresh();
+              }}
+            >
+              <Text style={styles.retry}>Try again</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <ScrollView
+            style={styles.board}
+            contentContainerStyle={[styles.boardContent, { paddingBottom: dockInset + 72 }]}
+            showsVerticalScrollIndicator={false}
+          >
+            {missed.length > 0 ? (
+              <View style={styles.missed}>
+                <Text style={styles.missedTitle}>Missed while away ({missed.length})</Text>
+                <Text style={styles.missedBody}>
+                  {missed
+                    .slice(0, 3)
+                    .map((m) => m.title)
+                    .join(' · ')}
+                  {missed.length > 3 ? '…' : ''} — not auto-played.
+                </Text>
+                <Pressable
+                  onPress={async () => {
+                    await clearMissedAlarms();
+                    setMissed(await loadMissedAlarms());
+                  }}
+                >
+                  <Text style={styles.missedAction}>Dismiss</Text>
+                </Pressable>
+              </View>
+            ) : null}
 
-                tasks={byCategory[cat]}
-                onToggle={handleToggle}
-              />
-            ))
-          )}
-        </View>
+            {visibleCategories.length === 0 ? (
+              <View style={styles.emptyWrap}>
+                <Text style={styles.emptyTitle}>Nothing scheduled</Text>
+                <Text style={styles.emptyBody}>
+                  Tap + to add a reminder — pick a 12-hour time, a repeat and the music it should
+                  ring with.
+                </Text>
+              </View>
+            ) : (
+              visibleCategories.map((category) => (
+                <CategoryAlarmGroup
+                  key={category}
+                  category={category}
+                  alarms={byCategory[category]}
+                  onToggle={(alarm, enabled) => void onToggleAlarm(alarm, enabled)}
+                  onEdit={(alarm) =>
+                    router.push({ pathname: '/alarm-edit', params: { id: alarm.id } })
+                  }
+                  onTest={(alarm) => void onTestAlarm(alarm)}
+                  onDelete={onDeleteAlarm}
+                />
+              ))
+            )}
+          </ScrollView>
+        )}
 
         <WarmInboundBubble
           script={inboundScript}
@@ -346,14 +367,7 @@ export default function RemindersDashboard() {
           onFinished={() => setInboundScript(null)}
         />
 
-        <VoiceCapture
-          onParsed={handleVoiceParsed}
-          onOpenChange={(open) => setListening(open)}
-          onTranscriptMood={(text) => {
-            const bio = moodFromTranscript(text);
-            void persistBio(bio).then(() => setMood(inferMood(bio)));
-          }}
-        />
+        <AddReminderFab />
 
         <HypeInterstitial task={hypeTask} onDismiss={() => setHypeTask(null)} />
 
@@ -367,7 +381,6 @@ export default function RemindersDashboard() {
             setInboundScript('Parked those worries as tasks. Rest—I have the board.');
           }}
         />
-
       </View>
     </PhoneShell>
   );
@@ -375,40 +388,43 @@ export default function RemindersDashboard() {
 
 const createStyles = (t: EverlyTheme) =>
   StyleSheet.create({
-  root: { flex: 1, backgroundColor: t.surfaces.base },
-  header: {
-    backgroundColor: t.accent,
-    paddingHorizontal: 20,
-    paddingTop: 18,
-    paddingBottom: 10,
-    borderBottomLeftRadius: 22,
-    borderBottomRightRadius: 22,
-  },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  headerAction: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerActionIcon: { fontSize: 20, color: t.onAccent },
-  headerDate: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: t.onAccent,
-    letterSpacing: -0.4,
-  },
-  presence: { paddingTop: 4, paddingBottom: 2, alignItems: 'center', gap: 2 },
-  board: {
-    flex: 1,
-    minHeight: 0,
-    paddingHorizontal: 12,
-    paddingBottom: 4,
-    gap: 6,
-    overflow: 'hidden',
-  },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
-  error: { color: t.danger, textAlign: 'center', paddingHorizontal: 16 },
-  retry: { color: t.accentDark, fontWeight: '700' },
-});
+    root: { flex: 1, backgroundColor: t.surfaces.base },
+    header: {
+      backgroundColor: t.accent,
+      paddingHorizontal: 20,
+      paddingTop: 18,
+      paddingBottom: 10,
+      borderBottomLeftRadius: 22,
+      borderBottomRightRadius: 22,
+    },
+    headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    headerAction: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    headerActionIcon: { fontSize: 20, color: t.onAccent },
+    headerDate: { fontSize: 22, fontWeight: '800', color: t.onAccent, letterSpacing: -0.4 },
+    presence: { paddingTop: 4, paddingBottom: 2, alignItems: 'center', gap: 2 },
+    board: { flex: 1, minHeight: 0 },
+    boardContent: { paddingHorizontal: 12, paddingTop: 4 },
+    center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
+    error: { color: t.danger, textAlign: 'center', paddingHorizontal: 16 },
+    retry: { color: t.accentDark, fontWeight: '700' },
+    missed: {
+      backgroundColor: t.soft,
+      borderColor: t.border,
+      borderWidth: 1,
+      borderRadius: 12,
+      padding: 12,
+      marginBottom: 10,
+    },
+    missedTitle: { fontWeight: '900', fontSize: 13, color: t.ink },
+    missedBody: { fontSize: 12, lineHeight: 17, marginTop: 4, color: t.muted },
+    missedAction: { color: t.accent, fontWeight: '800', marginTop: 6 },
+    emptyWrap: { paddingTop: 40, paddingHorizontal: 20, alignItems: 'center', gap: 8 },
+    emptyTitle: { fontSize: 17, fontWeight: '800', color: t.ink },
+    emptyBody: { fontSize: 13, lineHeight: 19, color: t.muted, textAlign: 'center' },
+  });

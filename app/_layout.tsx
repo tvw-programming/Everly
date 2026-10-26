@@ -102,7 +102,6 @@ function RootLayoutNav() {
               headerShown: false,
             }}
           />
-          <Stack.Screen name="alarm-reliability" options={{ headerShown: false }} />
           <Stack.Screen name="alarm-active" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
           <Stack.Screen name="settings" options={{ headerShown: false }} />
         </Stack>

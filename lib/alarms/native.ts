@@ -1,17 +1,16 @@
 /**
  * Thin bridge to the EverlyAlarm native module.
  * When the native APK module is missing (web / Expo Go), falls back to
- * expo-notifications + local preview so UI still works.
+ * scheduled local notifications so reminders still alert.
  *
- * Never statically import expo-notifications — Android Expo Go crashes on
- * TopicSubscriptionModule.requireNativeModule at module load.
+ * Local notifications work in Expo Go on Android; only the barrel import of
+ * expo-notifications does not, which is why this goes through lib/notify.
  */
-import { isRunningInExpoGo } from 'expo';
-import type * as NotificationsModule from 'expo-notifications';
 import * as Linking from 'expo-linking';
 import { Platform } from 'react-native';
 
 import { playSound, stopSound } from '@/lib/audio';
+import { loadNotifier } from '@/lib/notify';
 
 import { computeNextFireAt, toHour24 } from './schedule';
 import type { AlarmReminder } from './types';
@@ -41,18 +40,7 @@ type NativeModule = {
 let lastTestAt: string | null = null;
 const fallbackNotifIds = new Map<string, string>();
 
-function loadNotifications(): typeof NotificationsModule | null {
-  if (Platform.OS === 'web') return null;
-  if (Platform.OS === 'android' && isRunningInExpoGo()) return null;
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    return require('expo-notifications') as typeof NotificationsModule;
-  } catch {
-    return null;
-  }
-}
-
-const Notifications = loadNotifications();
+const notifier = loadNotifier();
 
 function getNative(): NativeModule | null {
   try {
@@ -95,11 +83,8 @@ function toNativePayload(alarm: AlarmReminder) {
 }
 
 async function ensureNotifPermission(): Promise<boolean> {
-  if (!Notifications || Platform.OS === 'web') return false;
-  const existing = await Notifications.getPermissionsAsync();
-  if (existing.granted) return true;
-  const req = await Notifications.requestPermissionsAsync();
-  return req.granted;
+  if (!notifier) return false;
+  return notifier.ensurePermission();
 }
 
 /** Schedule or cancel based on enabled + next fire. */
@@ -116,35 +101,29 @@ export async function syncAlarmSchedule(alarm: AlarmReminder): Promise<number | 
     return res.nextFireAt ?? next;
   }
 
-  // Fallback: expo-notifications (dev builds) — not full-song FGS; unavailable in Expo Go Android
-  if (!Notifications) return next;
+  // Fallback: a scheduled local notification. It alerts on time but cannot
+  // play a full song from a closed app — that needs the native APK module.
+  if (!notifier) return next;
 
-  if (fallbackNotifIds.has(alarm.id)) {
-    try {
-      await Notifications.cancelScheduledNotificationAsync(fallbackNotifIds.get(alarm.id)!);
-    } catch {
-      // ignore
-    }
+  const previous = fallbackNotifIds.get(alarm.id);
+  if (previous) {
+    await notifier.cancel(previous);
     fallbackNotifIds.delete(alarm.id);
   }
-  if (!alarm.enabled || !next || Platform.OS === 'web') return next;
+  if (!alarm.enabled || !next) return next;
 
   const ok = await ensureNotifPermission();
   if (!ok) return next;
 
-  const id = await Notifications.scheduleNotificationAsync({
-    content: {
+  const id = await notifier.scheduleAt(
+    {
       title: alarm.title,
-      body: alarm.description || 'Alarm',
+      body: alarm.description || `${alarm.audio.displayName} · reminder`,
       data: { alarmId: alarm.id, kind: 'alarm_fallback' },
-      sound: true,
     },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DATE,
-      date: new Date(next),
-    },
-  });
-  fallbackNotifIds.set(alarm.id, id);
+    new Date(next)
+  );
+  if (id) fallbackNotifIds.set(alarm.id, id);
   return next;
 }
 
@@ -155,12 +134,8 @@ export async function cancelAlarmSchedule(id: string): Promise<void> {
     return;
   }
   const notifId = fallbackNotifIds.get(id);
-  if (notifId && Notifications) {
-    try {
-      await Notifications.cancelScheduledNotificationAsync(notifId);
-    } catch {
-      // ignore
-    }
+  if (notifId && notifier) {
+    await notifier.cancel(notifId);
     fallbackNotifIds.delete(id);
   }
 }
@@ -224,15 +199,7 @@ export async function getReliabilityStatus(): Promise<ReliabilityStatus> {
     }
   }
 
-  let notifications = false;
-  if (Notifications) {
-    try {
-      notifications = (await Notifications.getPermissionsAsync()).granted;
-    } catch {
-      notifications = false;
-    }
-  }
-
+  const notifications = notifier ? await notifier.hasPermission() : false;
   const nativeModule = hasNativeAlarmModule();
   return {
     notifications,
