@@ -12,6 +12,8 @@ import { Platform } from 'react-native';
 import { playSound, stopSound } from '@/lib/audio';
 import { loadNotifier } from '@/lib/notify';
 
+import { alarmAudioUri } from './audioSource';
+
 import { computeNextFireAt, toHour24 } from './schedule';
 import type { AlarmReminder } from './types';
 
@@ -159,11 +161,11 @@ export async function testAlarm(alarm: AlarmReminder): Promise<{ mode: 'native' 
     lastTestAt = new Date().toISOString();
     return { mode: 'native' };
   }
-  // Preview bundled / local via JS audio
+  // Preview the reminder's real audio — the picked music file, not just a tone.
   lastTestAt = new Date().toISOString();
-  if (alarm.audio.source === 'silent') return { mode: 'preview' };
-  const key = alarm.audio.bundledKey ?? 'chime';
-  await playSound(key);
+  const uri = alarmAudioUri(alarm.audio);
+  if (!uri) return { mode: 'preview' };
+  await playSound(uri);
   setTimeout(() => {
     void stopSound();
   }, 4000);

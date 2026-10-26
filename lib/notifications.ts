@@ -1,5 +1,7 @@
 import { loadNotifier } from './notify';
 import { playSound } from './audio';
+import { alarmAudioUri } from './alarms/audioSource';
+import { getAlarm } from './alarms/storage';
 import { getNextFireDate } from './schedule';
 import { getReminderById, upsertReminder } from './storage';
 import type { Reminder } from './types';
@@ -61,8 +63,27 @@ async function rescheduleAfterFire(reminderId: string): Promise<void> {
   await upsertReminder({ ...reminder, notificationId });
 }
 
+/**
+ * A reminder scheduled through the alarm fallback carries only its alarmId, so
+ * its chosen tone or music file has to be resolved here before anything plays.
+ */
+async function playAlarmAudio(alarmId: string): Promise<void> {
+  const alarm = await getAlarm(alarmId);
+  if (!alarm) return;
+  const uri = alarmAudioUri(alarm.audio);
+  if (!uri) return;
+  await playSound(uri);
+}
+
 async function handleNotificationData(data: Record<string, unknown> | undefined): Promise<void> {
   if (!data) return;
+
+  const alarmId = typeof data.alarmId === 'string' ? data.alarmId : undefined;
+  if (alarmId) {
+    await playAlarmAudio(alarmId);
+    return;
+  }
+
   const assetUri = typeof data.assetUri === 'string' ? data.assetUri : undefined;
   const reminderId = typeof data.reminderId === 'string' ? data.reminderId : undefined;
   const mode = data.soundMode;

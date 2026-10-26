@@ -136,11 +136,14 @@ function build(mods: Submodules): Notifier {
     },
 
     setHandler() {
+      // Foreground presentation only. Sound is left to the app, which plays the
+      // reminder's own tone or music file; the notification's `sound: true`
+      // still covers the case where the app is not running to do that.
       mods.setHandler({
         handleNotification: async () => ({
           shouldShowBanner: true,
           shouldShowList: true,
-          shouldPlaySound: true,
+          shouldPlaySound: false,
           shouldSetBadge: false,
         }),
       });
