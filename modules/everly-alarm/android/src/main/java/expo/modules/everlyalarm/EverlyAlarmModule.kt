@@ -48,6 +48,19 @@ class EverlyAlarmModule : Module() {
       AlarmScheduler.rescheduleAll(context, list)
     }
 
+    // Native owns the live schedule after a fire, so JS reads it back rather
+    // than second-guessing it from its own stale copy.
+    AsyncFunction("getSchedules") {
+      AlarmStore.all(context).map { payload ->
+        val next = payload.optLong("nextFireAt", 0L)
+        mapOf(
+          "id" to payload.optString("id"),
+          "nextFireAt" to if (next > 0L) next else null,
+          "enabled" to payload.optBoolean("enabled", true)
+        )
+      }
+    }
+
     AsyncFunction("testFire") { id: String ->
       val stored = AlarmStore.get(context, id)
       val payload = stored ?: JSONObject()

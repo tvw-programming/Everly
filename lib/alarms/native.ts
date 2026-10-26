@@ -14,6 +14,7 @@ import { loadNotifier } from '@/lib/notify';
 
 import { alarmAudioUri } from './audioSource';
 
+import type { NativeSchedule } from './reconcile';
 import { computeNextFireAt, toHour24 } from './schedule';
 import type { AlarmReminder } from './types';
 
@@ -33,6 +34,7 @@ type NativeModule = {
   schedule(payload: string): Promise<{ nextFireAt: number | null }>;
   cancel(id: string): Promise<void>;
   rescheduleAll(payload: string): Promise<void>;
+  getSchedules(): Promise<NativeSchedule[]>;
   testFire(id: string): Promise<void>;
   stopAlarm(): Promise<void>;
   snoozeAlarm(minutes: number): Promise<void>;
@@ -141,6 +143,20 @@ export async function cancelAlarmSchedule(id: string): Promise<void> {
   if (notifId && notifier) {
     await notifier.cancel(notifId);
     fallbackNotifIds.delete(id);
+  }
+}
+
+/**
+ * What the native module believes is scheduled. Empty when it is absent, which
+ * makes the caller fall back to the stored values.
+ */
+export async function getNativeSchedules(): Promise<NativeSchedule[]> {
+  const native = getNative();
+  if (!native || Platform.OS !== 'android') return [];
+  try {
+    return await native.getSchedules();
+  } catch {
+    return [];
   }
 }
 
