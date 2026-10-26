@@ -8,6 +8,8 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.media.MediaPlayer
 import android.media.RingtoneManager
 import android.net.Uri
@@ -34,6 +36,18 @@ class AlarmPlaybackService : Service() {
   private var alsoDueTitle: String? = null
   private val handler = Handler(Looper.getMainLooper())
   private var stopRunnable: Runnable? = null
+  private var focusRequest: AudioFocusRequest? = null
+
+  /**
+   * An alarm the user cannot hear has failed, so this never ducks and never
+   * pauses for a transient loss such as an incoming call. Only a permanent
+   * loss ends playback.
+   */
+  private val focusListener = AudioManager.OnAudioFocusChangeListener { change ->
+    if (change == AudioManager.AUDIOFOCUS_LOSS) {
+      finish(stopSelf = true)
+    }
+  }
 
   override fun onBind(intent: Intent?): IBinder? = null
 
@@ -114,12 +128,14 @@ class AlarmPlaybackService : Service() {
     val path = payload.optString("managedPath", "")
     val loop = payload.optBoolean("loop", true)
 
+    val attrs = AudioAttributes.Builder()
+      .setUsage(AudioAttributes.USAGE_ALARM)
+      .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+      .build()
+    requestFocus(attrs)
+
     try {
       val mp = MediaPlayer()
-      val attrs = AudioAttributes.Builder()
-        .setUsage(AudioAttributes.USAGE_ALARM)
-        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-        .build()
       mp.setAudioAttributes(attrs)
 
       when {
@@ -161,6 +177,37 @@ class AlarmPlaybackService : Service() {
     }
   }
 
+  /**
+   * Transient focus, because an alarm is finite: whatever was playing before
+   * is expected to resume once the user dismisses it.
+   */
+  private fun requestFocus(attrs: AudioAttributes) {
+    abandonFocus()
+    val am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+      .setAudioAttributes(attrs)
+      .setOnAudioFocusChangeListener(focusListener, handler)
+      .build()
+    focusRequest = request
+    // Ring regardless of the answer — a denied request must not silence an alarm.
+    try {
+      am.requestAudioFocus(request)
+    } catch (_: Exception) {
+      // ignore
+    }
+  }
+
+  private fun abandonFocus() {
+    val request = focusRequest ?: return
+    focusRequest = null
+    try {
+      val am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+      am.abandonAudioFocusRequest(request)
+    } catch (_: Exception) {
+      // ignore
+    }
+  }
+
   private fun maybeVibrate(payload: JSONObject) {
     if (!payload.optBoolean("vibration", true)) return
     vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -188,6 +235,7 @@ class AlarmPlaybackService : Service() {
       // ignore
     }
     vibrator = null
+    abandonFocus()
     AlarmStore.setActiveId(this, null)
     currentId = null
     currentPayload = null

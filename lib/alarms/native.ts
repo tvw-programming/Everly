@@ -21,6 +21,8 @@ export type ReliabilityStatus = {
   notifications: boolean;
   exactAlarms: boolean;
   nativeModule: boolean;
+  /** False when the alarm stream is at zero or muted — reminders would be silent. */
+  alarmVolumeOk: boolean;
   batteryHint: string;
   lastTestAt?: string | null;
   message: string;
@@ -207,6 +209,9 @@ export async function getReliabilityStatus(): Promise<ReliabilityStatus> {
     notifications,
     exactAlarms: nativeModule,
     nativeModule,
+    // Only the native module can read the alarm stream; assume audible elsewhere
+    // rather than showing a warning we cannot substantiate.
+    alarmVolumeOk: true,
     batteryHint: nativeModule
       ? 'Open battery settings and exclude Everly from optimization for reliable alarms.'
       : 'Install the Android APK (custom build) for exact alarms and full-song playback. Expo Go cannot do this.',
