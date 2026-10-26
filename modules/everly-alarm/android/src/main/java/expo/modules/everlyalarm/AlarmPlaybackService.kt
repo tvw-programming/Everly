@@ -272,9 +272,15 @@ class AlarmPlaybackService : Service() {
     val id = currentId ?: "alarm"
     val snoozeMin = currentPayload?.optInt("snoozeMinutes", 10) ?: 10
 
-    val contentIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
-      flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-      data = Uri.parse("reminders://alarm-active?id=$id")
+    // Must be an explicit VIEW intent: the launcher intent is ACTION_MAIN, and
+    // setting data on it does not reach the app as a deep link, so tapping the
+    // notification lands on Home instead of the alarm.
+    val contentIntent = Intent(
+      Intent.ACTION_VIEW,
+      Uri.parse("reminders://alarm-active?id=$id")
+    ).apply {
+      setPackage(packageName)
+      addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
     }
     val contentPi = PendingIntent.getActivity(
       this,
