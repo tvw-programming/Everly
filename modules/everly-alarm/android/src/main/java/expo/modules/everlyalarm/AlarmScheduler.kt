@@ -11,6 +11,7 @@ object AlarmScheduler {
   const val ACTION_FIRE = "expo.modules.everlyalarm.FIRE"
   const val EXTRA_ALARM_ID = "alarmId"
   const val EXTRA_PAYLOAD = "payload"
+  private const val SHOW_ALARM_REQUEST_CODE = 90001
 
   fun canScheduleExact(ctx: Context): Boolean {
     val am = ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager
@@ -42,12 +43,11 @@ object AlarmScheduler {
     val am = ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager
     val pi = pendingFire(ctx, id, payload)
 
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-      am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next, pi)
-    } else {
-      @Suppress("DEPRECATION")
-      am.setExact(AlarmManager.RTC_WAKEUP, next, pi)
-    }
+    // setAlarmClock is the strongest primitive Android offers: it is exempt from
+    // Doze and battery-saver deferral, where setExactAndAllowWhileIdle is throttled
+    // to roughly one fire per app every 9 minutes. It also puts the alarm icon in
+    // the status bar, which is honest signalling for a reminder that will ring.
+    am.setAlarmClock(AlarmManager.AlarmClockInfo(next, showAlarmIntent(ctx)), pi)
     return next
   }
 
@@ -124,6 +124,19 @@ object AlarmScheduler {
       schedule(ctx, payload)
       return
     }
+  }
+
+  /** Where the system sends the user if they tap the status-bar alarm icon. */
+  private fun showAlarmIntent(ctx: Context): PendingIntent {
+    val launch = ctx.packageManager.getLaunchIntentForPackage(ctx.packageName)
+      ?: Intent(Intent.ACTION_MAIN)
+    launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    return PendingIntent.getActivity(
+      ctx,
+      SHOW_ALARM_REQUEST_CODE,
+      launch,
+      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+    )
   }
 
   private fun pendingFire(ctx: Context, id: String, payload: JSONObject?): PendingIntent {
