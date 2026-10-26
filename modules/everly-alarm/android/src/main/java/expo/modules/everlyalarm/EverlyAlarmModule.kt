@@ -61,6 +61,25 @@ class EverlyAlarmModule : Module() {
       }
     }
 
+    // Outcomes recorded while the app was closed. Draining is destructive by
+    // design: JS persists them into its own history as it reads them.
+    AsyncFunction("drainOutcomes") {
+      val arr = AlarmStore.outcomes(context)
+      val out = mutableListOf<Map<String, Any?>>()
+      for (i in 0 until arr.length()) {
+        val row = arr.optJSONObject(i) ?: continue
+        out.add(
+          mapOf(
+            "alarmId" to row.optString("alarmId"),
+            "reason" to row.optString("reason"),
+            "at" to row.optLong("at")
+          )
+        )
+      }
+      AlarmStore.clearOutcomes(context)
+      out
+    }
+
     AsyncFunction("testFire") { id: String ->
       val stored = AlarmStore.get(context, id)
       val payload = stored ?: JSONObject()

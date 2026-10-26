@@ -48,7 +48,7 @@ class AlarmPlaybackService : Service() {
    */
   private val focusListener = AudioManager.OnAudioFocusChangeListener { change ->
     if (change == AudioManager.AUDIOFOCUS_LOSS) {
-      endCurrent()
+      endCurrent("stop")
       promoteOrShutdown()
     }
   }
@@ -78,8 +78,13 @@ class AlarmPlaybackService : Service() {
         }
       }
 
-      ACTION_STOP, ACTION_DONE -> {
-        endCurrent()
+      ACTION_STOP -> {
+        endCurrent("stop")
+        promoteOrShutdown()
+      }
+
+      ACTION_DONE -> {
+        endCurrent("done")
         promoteOrShutdown()
       }
 
@@ -89,7 +94,7 @@ class AlarmPlaybackService : Service() {
         // Capture the live payload before clearing it: without it a snooze whose
         // stored row has been rewritten comes back as an untitled default alarm.
         val payload = currentPayload
-        endCurrent()
+        endCurrent("snooze")
         if (id != null) {
           AlarmScheduler.scheduleSnooze(this, id, minutes, payload)
         }
@@ -105,6 +110,7 @@ class AlarmPlaybackService : Service() {
 
 
   private fun begin(id: String, payload: JSONObject) {
+    AlarmStore.appendOutcome(this, id, "triggered", System.currentTimeMillis())
     currentId = id
     currentPayload = payload
     AlarmStore.setActiveId(this, id)
@@ -120,7 +126,7 @@ class AlarmPlaybackService : Service() {
     val maxMin = payload.optInt("maxRingMinutes", 10).coerceIn(1, 60)
     stopRunnable?.let { handler.removeCallbacks(it) }
     stopRunnable = Runnable {
-      endCurrent()
+      endCurrent("timeout")
       promoteOrShutdown()
     }
     handler.postDelayed(stopRunnable!!, maxMin * 60_000L)
@@ -187,7 +193,7 @@ class AlarmPlaybackService : Service() {
       mp.setOnCompletionListener {
         // Play-once finished: hand over to anything queued behind it.
         if (!loop) {
-          endCurrent()
+          endCurrent("timeout")
           promoteOrShutdown()
         }
       }
@@ -259,7 +265,13 @@ class AlarmPlaybackService : Service() {
    * End the reminder that is ringing now, leaving the queue and the foreground
    * notification intact so a waiting reminder can take over without a gap.
    */
-  private fun endCurrent() {
+  /**
+   * [reason] is why this occurrence ended — "stop", "snooze", "done" or
+   * "timeout". They are four different outcomes and JS stores them as such;
+   * completion is never inferred from the alarm simply going quiet.
+   */
+  private fun endCurrent(reason: String) {
+    currentId?.let { AlarmStore.appendOutcome(this, it, reason, System.currentTimeMillis()) }
     stopRunnable?.let { handler.removeCallbacks(it) }
     stopRunnable = null
     stopPlaybackOnly()

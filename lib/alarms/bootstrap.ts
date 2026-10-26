@@ -1,6 +1,7 @@
 import { AppState, type AppStateStatus, Platform } from 'react-native';
 
-import { getNativeSchedules, rescheduleAllAlarms } from './native';
+import { drainNativeOutcomes, getNativeSchedules, rescheduleAllAlarms } from './native';
+import { recordOccurrence, stateForReason } from './occurrences';
 import { reconcileSchedules } from './reconcile';
 import { computeNextFireAt } from './schedule';
 import { saveAlarms } from './storage';
@@ -66,6 +67,12 @@ export async function syncAlarmsOnLaunch(now: Date = new Date()): Promise<{
 
   // Native owns the live schedule once an alarm has fired, so ask it what is
   // actually pending before deciding anything was missed.
+  // Outcomes the service recorded while the app was closed are drained into
+  // history first, so Stop / Done / timeout stay distinguishable.
+  for (const outcome of await drainNativeOutcomes()) {
+    await recordOccurrence(outcome.alarmId, stateForReason(outcome.reason), outcome.at);
+  }
+
   const nativeSchedules = await getNativeSchedules();
   const { alarms: reconciled, missed } = reconcileSchedules(raw, nativeSchedules, nowMs);
 

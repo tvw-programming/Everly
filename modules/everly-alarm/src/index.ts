@@ -11,6 +11,7 @@ type ReliabilityStatus = {
 };
 
 type NativeSchedule = { id: string; nextFireAt: number | null; enabled: boolean };
+type NativeOutcome = { alarmId: string; reason: string; at: number };
 
 type EverlyAlarmNative = {
   canScheduleExactAlarms(): Promise<boolean>;
@@ -18,6 +19,7 @@ type EverlyAlarmNative = {
   cancel(id: string): Promise<void>;
   rescheduleAll(payload: string): Promise<void>;
   getSchedules(): Promise<NativeSchedule[]>;
+  drainOutcomes(): Promise<NativeOutcome[]>;
   testFire(id: string): Promise<void>;
   stopAlarm(): Promise<void>;
   snoozeAlarm(minutes: number): Promise<void>;
@@ -54,6 +56,7 @@ const api: EverlyAlarmNative = {
   cancel: (id) => native?.cancel(id) ?? Promise.resolve(),
   rescheduleAll: (payload) => native?.rescheduleAll(payload) ?? Promise.resolve(),
   getSchedules: () => native?.getSchedules() ?? Promise.resolve([]),
+  drainOutcomes: () => native?.drainOutcomes() ?? Promise.resolve([]),
   testFire: (id) => native?.testFire(id) ?? missing(),
   stopAlarm: () => native?.stopAlarm() ?? Promise.resolve(),
   snoozeAlarm: (m) => native?.snoozeAlarm(m) ?? Promise.resolve(),

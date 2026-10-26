@@ -35,6 +35,7 @@ type NativeModule = {
   cancel(id: string): Promise<void>;
   rescheduleAll(payload: string): Promise<void>;
   getSchedules(): Promise<NativeSchedule[]>;
+  drainOutcomes(): Promise<NativeOutcome[]>;
   testFire(id: string): Promise<void>;
   stopAlarm(): Promise<void>;
   snoozeAlarm(minutes: number): Promise<void>;
@@ -155,6 +156,19 @@ export async function getNativeSchedules(): Promise<NativeSchedule[]> {
   if (!native || Platform.OS !== 'android') return [];
   try {
     return await native.getSchedules();
+  } catch {
+    return [];
+  }
+}
+
+/** What the native service recorded while the app was closed. */
+export type NativeOutcome = { alarmId: string; reason: string; at: number };
+
+export async function drainNativeOutcomes(): Promise<NativeOutcome[]> {
+  const native = getNative();
+  if (!native || Platform.OS !== 'android') return [];
+  try {
+    return await native.drainOutcomes();
   } catch {
     return [];
   }
