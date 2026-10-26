@@ -14,6 +14,7 @@
       }
     },
     "android": {
+      "package": "app.everly.reminders",
       "adaptiveIcon": {
         "backgroundColor": "#E8F0EE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -54,8 +55,8 @@
         {
           "sounds": [
             "./assets/sounds/chime.mp3",
-            "./assets/sounds/soft-bell.mp3",
-            "./assets/sounds/alert-tone.mp3"
+            "./assets/sounds/soft_bell.mp3",
+            "./assets/sounds/alert_tone.mp3"
           ]
         }
       ]
