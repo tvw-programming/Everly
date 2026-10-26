@@ -74,8 +74,16 @@ object AlarmScheduler {
     }
   }
 
-  fun scheduleSnooze(ctx: Context, id: String, minutes: Int) {
-    val base = AlarmStore.get(ctx, id) ?: JSONObject().put("id", id).put("title", "Alarm")
+  /**
+   * [live] is the payload the service was actually ringing. Preferring the
+   * stored row alone loses the real title, audio and snooze length whenever a
+   * reschedule has rewritten the store, which made a snoozed reminder come back
+   * as an untitled default alarm.
+   */
+  fun scheduleSnooze(ctx: Context, id: String, minutes: Int, live: JSONObject? = null) {
+    val base = AlarmStore.get(ctx, id)
+      ?: live
+      ?: JSONObject().put("id", id).put("title", "Alarm")
     val next = System.currentTimeMillis() + minutes * 60_000L
     base.put("nextFireAt", next)
     base.put("enabled", true)

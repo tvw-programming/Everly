@@ -28,12 +28,15 @@ import java.io.File
  * Short mediaPlayback foreground service — plays local/bundled audio until
  * Stop / Snooze / Done or max ring minutes.
  */
+/** A reminder that came due while another was already ringing. */
+private data class Queued(val id: String, val payload: JSONObject, val queuedAt: Long)
+
 class AlarmPlaybackService : Service() {
   private var player: MediaPlayer? = null
   private var vibrator: Vibrator? = null
   private var currentId: String? = null
   private var currentPayload: JSONObject? = null
-  private var alsoDueTitle: String? = null
+  private val pending = ArrayDeque<Queued>()
   private val handler = Handler(Looper.getMainLooper())
   private var stopRunnable: Runnable? = null
   private var focusRequest: AudioFocusRequest? = null
@@ -45,7 +48,8 @@ class AlarmPlaybackService : Service() {
    */
   private val focusListener = AudioManager.OnAudioFocusChangeListener { change ->
     if (change == AudioManager.AUDIOFOCUS_LOSS) {
-      finish(stopSelf = true)
+      endCurrent()
+      promoteOrShutdown()
     }
   }
 
@@ -61,32 +65,37 @@ class AlarmPlaybackService : Service() {
         } catch (_: Exception) {
           AlarmStore.get(this, id)
         } ?: return START_NOT_STICKY
-        begin(id, payload)
+
+        // One song at a time: a reminder arriving mid-playback waits its turn
+        // instead of being discarded.
+        if (currentId != null && currentId != id) {
+          if (pending.none { it.id == id }) {
+            pending.addLast(Queued(id, payload, System.currentTimeMillis()))
+          }
+          refreshNotification()
+        } else {
+          begin(id, payload)
+        }
       }
+
       ACTION_STOP, ACTION_DONE -> {
-        finish(stopSelf = true)
+        endCurrent()
+        promoteOrShutdown()
       }
+
       ACTION_SNOOZE -> {
         val minutes = intent.getIntExtra(EXTRA_SNOOZE_MINUTES, 10).coerceIn(1, 120)
         val id = currentId ?: intent.getStringExtra(AlarmScheduler.EXTRA_ALARM_ID)
-        finish(stopSelf = false)
+        // Capture the live payload before clearing it: without it a snooze whose
+        // stored row has been rewritten comes back as an untitled default alarm.
+        val payload = currentPayload
+        endCurrent()
         if (id != null) {
-          AlarmScheduler.scheduleSnooze(this, id, minutes)
+          AlarmScheduler.scheduleSnooze(this, id, minutes, payload)
         }
-        stopSelf()
+        promoteOrShutdown()
       }
-      ACTION_ALSO_DUE -> {
-        val raw = intent.getStringExtra(AlarmScheduler.EXTRA_PAYLOAD)
-        if (!raw.isNullOrBlank()) {
-          try {
-            val p = JSONObject(raw)
-            alsoDueTitle = p.optString("title", "Another reminder")
-            refreshNotification()
-          } catch (_: Exception) {
-            // ignore
-          }
-        }
-      }
+
       else -> {
         // no-op
       }
@@ -94,14 +103,8 @@ class AlarmPlaybackService : Service() {
     return START_NOT_STICKY
   }
 
-  private fun begin(id: String, payload: JSONObject) {
-    // Conflict: already playing something else → queue text only
-    if (currentId != null && currentId != id) {
-      alsoDueTitle = payload.optString("title", "Another reminder")
-      refreshNotification()
-      return
-    }
 
+  private fun begin(id: String, payload: JSONObject) {
     currentId = id
     currentPayload = payload
     AlarmStore.setActiveId(this, id)
@@ -116,8 +119,31 @@ class AlarmPlaybackService : Service() {
 
     val maxMin = payload.optInt("maxRingMinutes", 10).coerceIn(1, 60)
     stopRunnable?.let { handler.removeCallbacks(it) }
-    stopRunnable = Runnable { finish(stopSelf = true) }
+    stopRunnable = Runnable {
+      endCurrent()
+      promoteOrShutdown()
+    }
     handler.postDelayed(stopRunnable!!, maxMin * 60_000L)
+  }
+
+  /**
+   * Ring the next reminder that is still worth ringing, or shut down.
+   *
+   * A queued reminder that has waited longer than its own maximum ring time is
+   * dropped rather than going off at an arbitrary later moment; its schedule
+   * already advanced when it fired, so it simply reads as missed.
+   */
+  private fun promoteOrShutdown() {
+    val now = System.currentTimeMillis()
+    while (pending.isNotEmpty()) {
+      val next = pending.removeFirst()
+      val window = next.payload.optInt("maxRingMinutes", 10).coerceIn(1, 60) * 60_000L
+      if (now - next.queuedAt > window) continue
+      begin(next.id, next.payload)
+      return
+    }
+    stopForeground(STOP_FOREGROUND_REMOVE)
+    stopSelf()
   }
 
   private fun startPlayback(payload: JSONObject) {
@@ -159,7 +185,11 @@ class AlarmPlaybackService : Service() {
 
       mp.isLooping = loop
       mp.setOnCompletionListener {
-        if (!loop) finish(stopSelf = true)
+        // Play-once finished: hand over to anything queued behind it.
+        if (!loop) {
+          endCurrent()
+          promoteOrShutdown()
+        }
       }
       mp.prepare()
       mp.start()
@@ -225,7 +255,11 @@ class AlarmPlaybackService : Service() {
     }
   }
 
-  private fun finish(stopSelf: Boolean) {
+  /**
+   * End the reminder that is ringing now, leaving the queue and the foreground
+   * notification intact so a waiting reminder can take over without a gap.
+   */
+  private fun endCurrent() {
     stopRunnable?.let { handler.removeCallbacks(it) }
     stopRunnable = null
     stopPlaybackOnly()
@@ -239,9 +273,6 @@ class AlarmPlaybackService : Service() {
     AlarmStore.setActiveId(this, null)
     currentId = null
     currentPayload = null
-    alsoDueTitle = null
-    stopForeground(STOP_FOREGROUND_REMOVE)
-    if (stopSelf) stopSelf()
   }
 
   private fun stopPlaybackOnly() {
@@ -260,12 +291,19 @@ class AlarmPlaybackService : Service() {
 
   private fun refreshNotification() {
     val title = currentPayload?.optString("title", "Alarm") ?: "Alarm"
-    var body = currentPayload?.optString("description", "Reminder") ?: "Reminder"
-    if (!alsoDueTitle.isNullOrBlank()) {
-      body = "$body · Also due: $alsoDueTitle"
-    }
+    val body = currentPayload?.optString("description", "Reminder") ?: "Reminder"
     val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
     nm.notify(NOTIF_ID, buildNotification(title, body))
+  }
+
+  /** "1 more reminder waiting" so a queued alarm is visible, not silent. */
+  private fun waitingSuffix(): String {
+    val count = pending.size
+    return when {
+      count <= 0 -> ""
+      count == 1 -> " · 1 more reminder waiting"
+      else -> " · $count more reminders waiting"
+    }
   }
 
   private fun buildNotification(title: String, body: String): Notification {
@@ -306,7 +344,7 @@ class AlarmPlaybackService : Service() {
     return NotificationCompat.Builder(this, CHANNEL_ID)
       .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
       .setContentTitle(title)
-      .setContentText(body)
+      .setContentText(body + waitingSuffix())
       .setPriority(NotificationCompat.PRIORITY_MAX)
       .setCategory(NotificationCompat.CATEGORY_ALARM)
       .setOngoing(true)
@@ -350,26 +388,9 @@ class AlarmPlaybackService : Service() {
     const val ACTION_STOP = "expo.modules.everlyalarm.STOP"
     const val ACTION_SNOOZE = "expo.modules.everlyalarm.SNOOZE"
     const val ACTION_DONE = "expo.modules.everlyalarm.DONE"
-    const val ACTION_ALSO_DUE = "expo.modules.everlyalarm.ALSO_DUE"
     const val EXTRA_SNOOZE_MINUTES = "snoozeMinutes"
     private const val CHANNEL_ID = "everly_alarms"
     private const val NOTIF_ID = 71001
-
-    fun enqueueAlsoDue(ctx: Context, payload: JSONObject) {
-      val intent = Intent(ctx, AlarmPlaybackService::class.java).apply {
-        action = ACTION_ALSO_DUE
-        putExtra(AlarmScheduler.EXTRA_PAYLOAD, payload.toString())
-      }
-      try {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-          ctx.startForegroundService(intent)
-        } else {
-          ctx.startService(intent)
-        }
-      } catch (_: Exception) {
-        // Service may not be running; ignore second alarm for v1
-      }
-    }
 
     fun stop(ctx: Context) {
       val intent = Intent(ctx, AlarmPlaybackService::class.java).apply {

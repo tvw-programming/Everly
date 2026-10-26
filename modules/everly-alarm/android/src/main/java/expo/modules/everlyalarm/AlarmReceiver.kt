@@ -20,14 +20,9 @@ class AlarmReceiver : BroadcastReceiver() {
       else -> AlarmStore.get(context, id)
     } ?: return
 
-    // One song at a time: mark also-due, skip music, still advance to next day
-    val active = AlarmStore.getActiveId(context)
-    if (!active.isNullOrBlank() && active != id) {
-      AlarmPlaybackService.enqueueAlsoDue(context, payload)
-      AlarmScheduler.advanceAfterFire(context, JSONObject(payload.toString()))
-      return
-    }
-
+    // Always hand it to the service, which decides whether to ring it now or
+    // queue it behind the reminder already playing. One song at a time is
+    // enforced there, where the queue lives.
     val service = Intent(context, AlarmPlaybackService::class.java).apply {
       action = AlarmPlaybackService.ACTION_START
       putExtra(AlarmScheduler.EXTRA_ALARM_ID, id)
