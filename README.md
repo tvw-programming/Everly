@@ -3,6 +3,7 @@
 Zero-scroll executive companion + **Manifestation Command Deck** for high-velocity solo operators.
 
 - **Home:** Personal · Social · Professional reminder board with a warm AI companion  
+- **Practice:** Marathi evening lines + English if-then cue cards, scoreboard, WOOP, setback flow (local-first)  
 - **Alarms:** 12-hour personal reminders; sideloaded APK rings full songs via a thin Kotlin AlarmManager + FGS module  
 - **Ideas:** Voice-first second brain — capture, organize, execute across domains  
 - **Manifest:** Personal · Social · Economical · Professional identity pillars (audio, Reality Lock, Vision prompts)  
@@ -59,6 +60,7 @@ Use **Expo Go** for notifications, MP3, Voice Echo recording, and haptics. Web i
 app/                      Expo Router (tabs + alarm / reminder screens)
 components/               Board, companion, ideas, manifestation, alarms, glass UI
 lib/alarms/               Alarm model, storage, schedule, native bridge
+lib/practice/             Practice engine (library, session, scoreboard, WOOP)
 lib/companion/            Mood, rituals, hype, follow-up, sync
 lib/ideas/                Voice ideas vault (organize, storage, lifecycle)
 lib/manifestation/        Pillars, storage, dual-stem audio

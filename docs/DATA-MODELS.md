@@ -218,6 +218,12 @@ Persisted id only (`@everly/theme/v1`); tokens are code-defined.
 | `@everly/theme/v1` | theme storage | `ThemeId` string |
 | `@alarms/v1` | `lib/alarms/storage.ts` | `AlarmReminder[]` |
 | `@alarms/missed/v1` | `lib/alarms/bootstrap.ts` | `{ id, title, scheduledAt }[]` |
+| `@practice/v1/statements` | `lib/practice/storage.ts` | `PracticeStatement[]` |
+| `@practice/v1/reps` | `lib/practice/storage.ts` | `PracticeRep[]` |
+| `@practice/v1/scoreboard` | `lib/practice/scoreboard.ts` | `ScoreboardWeek[]` |
+| `@practice/v1/wins` | `lib/practice/wins.ts` | `WinsEntry[]` |
+| `@practice/v1/woops` | `lib/practice/woop.ts` | `WoopRecord[]` |
+| `@practice/v1/scheduledJobs` | `lib/practice/notifications.ts` | title-only jobs |
 
 ---
 

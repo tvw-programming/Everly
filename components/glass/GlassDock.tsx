@@ -20,6 +20,7 @@ type IconSpec = { ios: string; android: string; glyph: string };
 
 const ICONS: Record<string, IconSpec> = {
   index: { ios: 'house.fill', android: 'home', glyph: '⌂' },
+  practice: { ios: 'checkmark.circle.fill', android: 'task_alt', glyph: '◎' },
   alarms: { ios: 'alarm.fill', android: 'alarm', glyph: '⏰' },
   ideas: { ios: 'lightbulb.fill', android: 'lightbulb', glyph: '💡' },
   manifestation: { ios: 'sparkles', android: 'auto_awesome', glyph: '✦' },
@@ -27,6 +28,7 @@ const ICONS: Record<string, IconSpec> = {
 
 const LABELS: Record<string, string> = {
   index: 'Home',
+  practice: 'Practice',
   alarms: 'Alarms',
   ideas: 'Ideas',
   manifestation: 'Manifest',
@@ -91,9 +93,9 @@ const styles = StyleSheet.create({
   bar: { height: DOCK_HEIGHT, justifyContent: 'center' },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', paddingHorizontal: 8 },
   item: {
-    minWidth: 64,
+    minWidth: 52,
     minHeight: 48,
-    paddingHorizontal: 8,
+    paddingHorizontal: 6,
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',

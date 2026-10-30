@@ -9,6 +9,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { PaperProvider } from 'react-native-paper';
 
 import { attachAlarmBootstrap } from '@/lib/alarms/bootstrap';
+import { attachPracticeBootstrap } from '@/lib/practice/bootstrap';
 import { configureAudioMode } from '@/lib/audio';
 import { attachNotificationListeners } from '@/lib/notifications';
 import { ThemeProvider as EverlyThemeProvider, useTheme } from '@/lib/theme/ThemeContext';
@@ -48,9 +49,11 @@ export default function RootLayout() {
     }
     const detachNotifs = attachNotificationListeners();
     const detachAlarms = attachAlarmBootstrap();
+    const detachPractice = attachPracticeBootstrap();
     return () => {
       detachNotifs?.();
       detachAlarms();
+      detachPractice();
     };
   }, []);
 
@@ -104,6 +107,11 @@ function RootLayoutNav() {
           />
           <Stack.Screen name="alarm-reliability" options={{ headerShown: false }} />
           <Stack.Screen name="alarm-active" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
+          <Stack.Screen name="practice-session" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
+          <Stack.Screen name="practice-woop" options={{ headerShown: false }} />
+          <Stack.Screen name="practice-review" options={{ headerShown: false }} />
+          <Stack.Screen name="practice-anxious" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
+          <Stack.Screen name="practice-voice" options={{ headerShown: false }} />
           <Stack.Screen name="settings" options={{ headerShown: false }} />
         </Stack>
       </ThemeProvider>

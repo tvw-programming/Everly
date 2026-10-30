@@ -115,7 +115,26 @@ Bundled WAVs: `assets/manifestation/tones/hz{40,528,639,888}.wav`. Web uses WebA
 
 ---
 
-## 6. Personal Android Alarms
+## 6. Practice Engine (Marathi / if-then)
+
+| Feature | Status | Notes |
+| --- | --- | --- |
+| Statement library + seed set (M/H/R + bench) | Shipped | `lib/practice/` — `@practice/v1/*` |
+| Active set caps 10+10+3 + bench/swap | Shipped | Cap prompt on activate |
+| Evening manifest session (hold 3s + 4s silence) | Shipped | `/practice-session` |
+| Cue cards + Start + timers (H1/H4) | Shipped | Practice tab |
+| Title-only scheduled triggers (MT1, HT4–HT5, HT7–HT10) | Shipped | `lib/practice/notifications.ts` |
+| Weekly input scoreboard + HT11 behind-pace | Shipped | No outcome fields |
+| Setback flow F10 (log → M4 → H2) | Shipped | Practice home |
+| WOOP (Outcome 2-min gate) | Shipped | `/practice-woop` |
+| Rotation boxes + monthly review flags | Shipped | F5 / F11 |
+| Wins file + Read three | Shipped | H5 prompt + review |
+| Own voice clips | Shipped | `/practice-voice` (optional) |
+| Local export | Shipped | JSON bundle from review |
+
+---
+
+## 7. Personal Android Alarms
 
 | Feature | Status | Notes |
 | --- | --- | --- |
@@ -132,7 +151,7 @@ Plan: [`plans/android_alarm_reminder_native.md`](../plans/android_alarm_reminder
 
 ---
 
-## 7. Theming
+## 8. Theming
 
 | Feature | Status | Notes |
 | --- | --- | --- |
@@ -146,7 +165,7 @@ See [THEMING.md](./THEMING.md).
 
 ---
 
-## 8. Platform matrix
+## 9. Platform matrix
 
 | Capability | iOS / Android (Expo Go) | Sideloaded APK | Web preview |
 | --- | --- | --- | --- |
