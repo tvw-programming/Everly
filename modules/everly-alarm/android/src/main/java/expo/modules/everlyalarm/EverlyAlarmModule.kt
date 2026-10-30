@@ -2,6 +2,7 @@ package expo.modules.everlyalarm
 
 import android.content.Context
 import android.content.Intent
+import android.media.AudioManager
 import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
@@ -45,6 +46,38 @@ class EverlyAlarmModule : Module() {
         arr.optJSONObject(i)?.let { list.add(it) }
       }
       AlarmScheduler.rescheduleAll(context, list)
+    }
+
+    // Native owns the live schedule after a fire, so JS reads it back rather
+    // than second-guessing it from its own stale copy.
+    AsyncFunction("getSchedules") {
+      AlarmStore.all(context).map { payload ->
+        val next = payload.optLong("nextFireAt", 0L)
+        mapOf(
+          "id" to payload.optString("id"),
+          "nextFireAt" to if (next > 0L) next else null,
+          "enabled" to payload.optBoolean("enabled", true)
+        )
+      }
+    }
+
+    // Outcomes recorded while the app was closed. Draining is destructive by
+    // design: JS persists them into its own history as it reads them.
+    AsyncFunction("drainOutcomes") {
+      val arr = AlarmStore.outcomes(context)
+      val out = mutableListOf<Map<String, Any?>>()
+      for (i in 0 until arr.length()) {
+        val row = arr.optJSONObject(i) ?: continue
+        out.add(
+          mapOf(
+            "alarmId" to row.optString("alarmId"),
+            "reason" to row.optString("reason"),
+            "at" to row.optLong("at")
+          )
+        )
+      }
+      AlarmStore.clearOutcomes(context)
+      out
     }
 
     AsyncFunction("testFire") { id: String ->
@@ -114,6 +147,12 @@ class EverlyAlarmModule : Module() {
     AsyncFunction("getReliabilityStatus") {
       val notifications = NotificationManagerCompat.from(context).areNotificationsEnabled()
       val exact = AlarmScheduler.canScheduleExact(context)
+      // Volume 0 and an explicitly muted stream are distinct states; either one
+      // means the reminder will not be audible. Never adjust it on the user's behalf.
+      val audio = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+      val alarmVolumeOk =
+        audio.getStreamVolume(AudioManager.STREAM_ALARM) > 0 &&
+          !audio.isStreamMute(AudioManager.STREAM_ALARM)
       val batteryHint = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
         val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
         if (pm.isIgnoringBatteryOptimizations(context.packageName)) {
@@ -129,11 +168,13 @@ class EverlyAlarmModule : Module() {
         "notifications" to notifications,
         "exactAlarms" to exact,
         "nativeModule" to true,
+        "alarmVolumeOk" to alarmVolumeOk,
         "batteryHint" to batteryHint,
         "lastTestAt" to AlarmStore.getLastTestAt(context),
         "message" to when {
           !notifications -> "Enable notifications so Stop / Snooze / Done appear."
           !exact -> "Exact alarm access is off — open Alarm settings."
+          !alarmVolumeOk -> "Alarm volume is silent — raise it or you will not hear reminders."
           else -> "Native alarm module ready."
         }
       )

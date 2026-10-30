@@ -21,7 +21,6 @@ type IconSpec = { ios: string; android: string; glyph: string };
 const ICONS: Record<string, IconSpec> = {
   index: { ios: 'house.fill', android: 'home', glyph: '⌂' },
   practice: { ios: 'checkmark.circle.fill', android: 'task_alt', glyph: '◎' },
-  alarms: { ios: 'alarm.fill', android: 'alarm', glyph: '⏰' },
   ideas: { ios: 'lightbulb.fill', android: 'lightbulb', glyph: '💡' },
   manifestation: { ios: 'sparkles', android: 'auto_awesome', glyph: '✦' },
 };
@@ -29,7 +28,6 @@ const ICONS: Record<string, IconSpec> = {
 const LABELS: Record<string, string> = {
   index: 'Home',
   practice: 'Practice',
-  alarms: 'Alarms',
   ideas: 'Ideas',
   manifestation: 'Manifest',
 };

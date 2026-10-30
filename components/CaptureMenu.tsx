@@ -14,11 +14,10 @@ type Props = {
 };
 
 const ITEMS = [
-  { key: 'reminder', icon: '✎', label: 'Type a reminder', href: '/add-reminder' },
   { key: 'idea', icon: '💡', label: 'Capture idea', href: '/ideas?capture=1' },
 ] as const;
 
-/** Secondary create paths, reached by long-pressing the mic. */
+/** Secondary create paths, reached by long-pressing the add button. */
 export function CaptureMenu({ visible, onClose, anchorBottom }: Props) {
   const { theme } = useTheme();
 
