@@ -1,6 +1,8 @@
 import { AppState, type AppStateStatus, Platform } from 'react-native';
 
-import { rescheduleAllAlarms } from './native';
+import { drainNativeOutcomes, getNativeSchedules, rescheduleAllAlarms } from './native';
+import { recordOccurrence, stateForReason } from './occurrences';
+import { reconcileSchedules } from './reconcile';
 import { computeNextFireAt } from './schedule';
 import { saveAlarms } from './storage';
 import type { AlarmReminder } from './types';
@@ -62,31 +64,24 @@ export async function syncAlarmsOnLaunch(now: Date = new Date()): Promise<{
 }> {
   const raw = await readRaw();
   const nowMs = now.getTime();
-  const missed: MissedAlarm[] = [];
 
-  const updated = raw.map((alarm) => {
-    const previous = alarm.nextFireAt;
-    let next = { ...alarm };
+  // Native owns the live schedule once an alarm has fired, so ask it what is
+  // actually pending before deciding anything was missed.
+  // Outcomes the service recorded while the app was closed are drained into
+  // history first, so Stop / Done / timeout stay distinguishable.
+  for (const outcome of await drainNativeOutcomes()) {
+    await recordOccurrence(outcome.alarmId, stateForReason(outcome.reason), outcome.at);
+  }
 
-    if (
-      alarm.enabled &&
-      typeof previous === 'number' &&
-      previous < nowMs - 30_000
-    ) {
-      missed.push({ id: alarm.id, title: alarm.title, scheduledAt: previous });
-      // One-time alarms that already fired/missed stay off
-      if (alarm.frequency === 'once') {
-        next = { ...next, enabled: false };
-      }
-    }
+  const nativeSchedules = await getNativeSchedules();
+  const { alarms: reconciled, missed } = reconcileSchedules(raw, nativeSchedules, nowMs);
 
-    next = {
-      ...next,
-      nextFireAt: computeNextFireAt(next, now),
-      updatedAt: new Date().toISOString(),
-    };
-    return next;
-  });
+  const updated = reconciled.map((alarm) => ({
+    ...alarm,
+    // Keep native's time when it gave one; otherwise recompute from the rule.
+    nextFireAt: alarm.nextFireAt ?? computeNextFireAt(alarm, now),
+    updatedAt: new Date().toISOString(),
+  }));
 
   const alarms = await saveAlarms(updated);
   await rescheduleAllAlarms(alarms);

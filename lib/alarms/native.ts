@@ -14,6 +14,7 @@ import { loadNotifier } from '@/lib/notify';
 
 import { alarmAudioUri } from './audioSource';
 
+import type { NativeSchedule } from './reconcile';
 import { computeNextFireAt, toHour24 } from './schedule';
 import type { AlarmReminder } from './types';
 
@@ -21,6 +22,8 @@ export type ReliabilityStatus = {
   notifications: boolean;
   exactAlarms: boolean;
   nativeModule: boolean;
+  /** False when the alarm stream is at zero or muted — reminders would be silent. */
+  alarmVolumeOk: boolean;
   batteryHint: string;
   lastTestAt?: string | null;
   message: string;
@@ -31,6 +34,8 @@ type NativeModule = {
   schedule(payload: string): Promise<{ nextFireAt: number | null }>;
   cancel(id: string): Promise<void>;
   rescheduleAll(payload: string): Promise<void>;
+  getSchedules(): Promise<NativeSchedule[]>;
+  drainOutcomes(): Promise<NativeOutcome[]>;
   testFire(id: string): Promise<void>;
   stopAlarm(): Promise<void>;
   snoozeAlarm(minutes: number): Promise<void>;
@@ -142,6 +147,33 @@ export async function cancelAlarmSchedule(id: string): Promise<void> {
   }
 }
 
+/**
+ * What the native module believes is scheduled. Empty when it is absent, which
+ * makes the caller fall back to the stored values.
+ */
+export async function getNativeSchedules(): Promise<NativeSchedule[]> {
+  const native = getNative();
+  if (!native || Platform.OS !== 'android') return [];
+  try {
+    return await native.getSchedules();
+  } catch {
+    return [];
+  }
+}
+
+/** What the native service recorded while the app was closed. */
+export type NativeOutcome = { alarmId: string; reason: string; at: number };
+
+export async function drainNativeOutcomes(): Promise<NativeOutcome[]> {
+  const native = getNative();
+  if (!native || Platform.OS !== 'android') return [];
+  try {
+    return await native.drainOutcomes();
+  } catch {
+    return [];
+  }
+}
+
 export async function rescheduleAllAlarms(alarms: AlarmReminder[]): Promise<void> {
   const native = getNative();
   if (native && Platform.OS === 'android') {
@@ -207,6 +239,9 @@ export async function getReliabilityStatus(): Promise<ReliabilityStatus> {
     notifications,
     exactAlarms: nativeModule,
     nativeModule,
+    // Only the native module can read the alarm stream; assume audible elsewhere
+    // rather than showing a warning we cannot substantiate.
+    alarmVolumeOk: true,
     batteryHint: nativeModule
       ? 'Open battery settings and exclude Everly from optimization for reliable alarms.'
       : 'Install the Android APK (custom build) for exact alarms and full-song playback. Expo Go cannot do this.',

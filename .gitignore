@@ -51,3 +51,6 @@ __pycache__/
 *.pyc
 .venv/
 backend/.venv/
+
+# Local Expo module build output
+modules/*/android/build/

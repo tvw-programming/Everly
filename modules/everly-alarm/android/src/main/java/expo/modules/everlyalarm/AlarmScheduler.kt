@@ -11,6 +11,7 @@ object AlarmScheduler {
   const val ACTION_FIRE = "expo.modules.everlyalarm.FIRE"
   const val EXTRA_ALARM_ID = "alarmId"
   const val EXTRA_PAYLOAD = "payload"
+  private const val SHOW_ALARM_REQUEST_CODE = 90001
 
   fun canScheduleExact(ctx: Context): Boolean {
     val am = ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager
@@ -42,12 +43,11 @@ object AlarmScheduler {
     val am = ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager
     val pi = pendingFire(ctx, id, payload)
 
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-      am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next, pi)
-    } else {
-      @Suppress("DEPRECATION")
-      am.setExact(AlarmManager.RTC_WAKEUP, next, pi)
-    }
+    // setAlarmClock is the strongest primitive Android offers: it is exempt from
+    // Doze and battery-saver deferral, where setExactAndAllowWhileIdle is throttled
+    // to roughly one fire per app every 9 minutes. It also puts the alarm icon in
+    // the status bar, which is honest signalling for a reminder that will ring.
+    am.setAlarmClock(AlarmManager.AlarmClockInfo(next, showAlarmIntent(ctx)), pi)
     return next
   }
 
@@ -74,8 +74,16 @@ object AlarmScheduler {
     }
   }
 
-  fun scheduleSnooze(ctx: Context, id: String, minutes: Int) {
-    val base = AlarmStore.get(ctx, id) ?: JSONObject().put("id", id).put("title", "Alarm")
+  /**
+   * [live] is the payload the service was actually ringing. Preferring the
+   * stored row alone loses the real title, audio and snooze length whenever a
+   * reschedule has rewritten the store, which made a snoozed reminder come back
+   * as an untitled default alarm.
+   */
+  fun scheduleSnooze(ctx: Context, id: String, minutes: Int, live: JSONObject? = null) {
+    val base = AlarmStore.get(ctx, id)
+      ?: live
+      ?: JSONObject().put("id", id).put("title", "Alarm")
     val next = System.currentTimeMillis() + minutes * 60_000L
     base.put("nextFireAt", next)
     base.put("enabled", true)
@@ -83,47 +91,70 @@ object AlarmScheduler {
   }
 
   /**
-   * After a fire, queue next occurrence for recurring alarms so music keeps
-   * working without waiting for JS to open. One-time alarms are disabled.
+   * After a fire, queue the next occurrence for recurring alarms so music keeps
+   * working without waiting for JS to open. A series that has ended is retired.
    */
   fun advanceAfterFire(ctx: Context, payload: JSONObject) {
-    val freq = payload.optString("frequency", "daily")
-    if (freq == "once") {
+    reschedule(ctx, payload, System.currentTimeMillis())
+  }
+
+  /**
+   * Move a stored alarm to its next occurrence after [fromMillis], or retire it
+   * when the series has ended. Shared by the post-fire advance and by clock or
+   * time-zone changes, so both go through one recurrence implementation.
+   */
+  fun reschedule(ctx: Context, payload: JSONObject, fromMillis: Long) {
+    val weekdays = mutableListOf<Int>()
+    payload.optJSONArray("weekdays")?.let { arr ->
+      for (i in 0 until arr.length()) weekdays.add(arr.optInt(i))
+    }
+
+    val next = NextOccurrence.compute(
+      frequency = payload.optString("frequency", "daily"),
+      hour24 = payload.optInt("hour24", 9),
+      minute = payload.optInt("minute", 0),
+      weekdays = weekdays,
+      endDateMillis = endOfDayMillis(payload.optString("endDate", "")),
+      fromMillis = fromMillis
+    )
+
+    if (next == null) {
       payload.put("enabled", false)
       AlarmStore.put(ctx, payload)
       cancel(ctx, payload.optString("id"))
       return
     }
 
-    val hour24 = payload.optInt("hour24", 9)
-    val minute = payload.optInt("minute", 0)
-    val weekdays = mutableListOf<Int>()
-    val arr = payload.optJSONArray("weekdays")
-    if (arr != null) {
-      for (i in 0 until arr.length()) weekdays.add(arr.optInt(i))
-    }
+    payload.put("nextFireAt", next)
+    payload.put("enabled", true)
+    schedule(ctx, payload)
+  }
 
+  /** "YYYY-MM-DD" to the last millisecond of that day, so the final day still rings. */
+  private fun endOfDayMillis(ymd: String?): Long? {
+    if (ymd.isNullOrBlank() || ymd == "null") return null
+    val parts = ymd.split("-")
+    if (parts.size != 3) return null
+    val year = parts[0].toIntOrNull() ?: return null
+    val month = parts[1].toIntOrNull() ?: return null
+    val day = parts[2].toIntOrNull() ?: return null
     val cal = java.util.Calendar.getInstance()
-    // Search up to 8 days ahead for the next slot strictly after now
-    for (i in 1..8) {
-      cal.timeInMillis = System.currentTimeMillis()
-      cal.add(java.util.Calendar.DAY_OF_YEAR, i)
-      cal.set(java.util.Calendar.HOUR_OF_DAY, hour24)
-      cal.set(java.util.Calendar.MINUTE, minute)
-      cal.set(java.util.Calendar.SECOND, 0)
-      cal.set(java.util.Calendar.MILLISECOND, 0)
+    cal.set(year, month - 1, day, 23, 59, 59)
+    cal.set(java.util.Calendar.MILLISECOND, 999)
+    return cal.timeInMillis
+  }
 
-      if (freq == "weekly") {
-        // JS weekdays: 0=Sun … 6=Sat; Calendar: SUNDAY=1 … SATURDAY=7
-        val jsDay = cal.get(java.util.Calendar.DAY_OF_WEEK) - 1
-        if (weekdays.isNotEmpty() && !weekdays.contains(jsDay)) continue
-      }
-
-      payload.put("nextFireAt", cal.timeInMillis)
-      payload.put("enabled", true)
-      schedule(ctx, payload)
-      return
-    }
+  /** Where the system sends the user if they tap the status-bar alarm icon. */
+  private fun showAlarmIntent(ctx: Context): PendingIntent {
+    val launch = ctx.packageManager.getLaunchIntentForPackage(ctx.packageName)
+      ?: Intent(Intent.ACTION_MAIN)
+    launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    return PendingIntent.getActivity(
+      ctx,
+      SHOW_ALARM_REQUEST_CODE,
+      launch,
+      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+    )
   }
 
   private fun pendingFire(ctx: Context, id: String, payload: JSONObject?): PendingIntent {

@@ -17,13 +17,13 @@ export const BUNDLED_SOUNDS: BundledSound[] = [
     key: 'soft-bell',
     name: 'Soft bell',
     description: 'Gentle longer tone',
-    source: require('../assets/sounds/soft-bell.mp3'),
+    source: require('../assets/sounds/soft_bell.mp3'),
   },
   {
     key: 'alert-tone',
     name: 'Alert tone',
     description: 'Clear attention cue',
-    source: require('../assets/sounds/alert-tone.mp3'),
+    source: require('../assets/sounds/alert_tone.mp3'),
   },
 ];
 

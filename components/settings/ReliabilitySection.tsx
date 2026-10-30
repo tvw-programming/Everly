@@ -51,6 +51,15 @@ export function ReliabilitySection() {
             ok={status.exactAlarms}
             detail="Lets Android wake the device on time."
           />
+          <Row
+            label="Alarm volume"
+            ok={status.alarmVolumeOk}
+            detail={
+              status.alarmVolumeOk
+                ? 'The alarm stream is audible.'
+                : 'Alarm stream is silent — reminders will not be audible.'
+            }
+          />
           <Row label="Native alarm module" ok={status.nativeModule} detail={status.message} />
           <Text variant="bodySmall" style={{ color: theme.muted, lineHeight: 17 }}>
             {status.batteryHint}
