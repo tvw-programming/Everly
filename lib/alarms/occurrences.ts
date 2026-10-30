@@ -35,6 +35,9 @@ export function stateForReason(reason: string): OccurrenceState {
     case 'snooze':
       return 'snoozed';
     case 'timeout':
+    // A queued reminder discarded for waiting past its own ring window: it
+    // never rang, so it must still surface rather than vanish.
+    case 'dropped':
       return 'timed_out';
     default:
       return 'dismissed';

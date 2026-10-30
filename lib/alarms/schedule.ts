@@ -160,3 +160,18 @@ export function defaultAlarmDraft(): Omit<AlarmReminder, 'id' | 'createdAt' | 'u
 export function isFrequency(v: string): v is AlarmFrequency {
   return v === 'once' || v === 'daily' || v === 'weekly';
 }
+
+/**
+ * The alarms it is safe to hand to the native scheduler.
+ *
+ * Native floors any non-future time to a few seconds from now, so passing it a
+ * series with nothing left — a one-time reminder whose moment has gone, or one
+ * past its end date — makes a retired reminder ring almost immediately, and
+ * again on every foreground.
+ */
+export function schedulableAlarms(
+  alarms: AlarmReminder[],
+  now: Date = new Date()
+): AlarmReminder[] {
+  return alarms.filter((a) => a.enabled && computeNextFireAt(a, now) != null);
+}

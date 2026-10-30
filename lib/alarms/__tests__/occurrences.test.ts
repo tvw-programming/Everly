@@ -99,3 +99,13 @@ describe('loadOccurrences', () => {
     expect(await loadOccurrences()).toEqual([]);
   });
 });
+
+/**
+ * A queued reminder that waited past its own ring window is discarded. It must
+ * still leave a trace, or the person never learns the reminder existed.
+ */
+describe('dropped queue entries', () => {
+  it('maps a dropped reminder to a visible timed_out state', () => {
+    expect(stateForReason('dropped')).toBe('timed_out');
+  });
+});

@@ -104,3 +104,34 @@ describe('reconcileSchedules', () => {
     expect(alarms.map((a) => a.id)).toEqual(['a1', 'a2', 'a3']);
   });
 });
+
+/**
+ * A one-time reminder is retired by native the moment it fires, so there is no
+ * native row left to prove it ran. Without the recorded outcome it looks
+ * identical to one that never rang.
+ */
+describe('reconcileSchedules with recorded outcomes', () => {
+  it('does not report a miss when an outcome proves the alarm fired', () => {
+    const stored = [alarm({ frequency: 'once', nextFireAt: NOW - 60 * MINUTE })];
+    const outcomes = [{ alarmId: 'a1', at: NOW - 59 * MINUTE }];
+
+    const { missed } = reconcileSchedules(stored, [], NOW, outcomes);
+    expect(missed).toEqual([]);
+  });
+
+  it('still reports a miss when the outcome belongs to a different alarm', () => {
+    const stored = [alarm({ nextFireAt: NOW - 60 * MINUTE })];
+    const outcomes = [{ alarmId: 'other', at: NOW - 59 * MINUTE }];
+
+    const { missed } = reconcileSchedules(stored, [], NOW, outcomes);
+    expect(missed.map((m) => m.id)).toEqual(['a1']);
+  });
+
+  it('ignores an outcome from before the scheduled time', () => {
+    const stored = [alarm({ nextFireAt: NOW - 60 * MINUTE })];
+    const outcomes = [{ alarmId: 'a1', at: NOW - 120 * MINUTE }];
+
+    const { missed } = reconcileSchedules(stored, [], NOW, outcomes);
+    expect(missed.map((m) => m.id)).toEqual(['a1']);
+  });
+})

@@ -1,6 +1,9 @@
 import type { MissedAlarm } from './bootstrap';
 import type { AlarmReminder } from './types';
 
+/** Evidence from the native service that a reminder actually rang. */
+export type FiredOutcome = { alarmId: string; at: number };
+
 /** One row of the native module's view of what is actually scheduled. */
 export type NativeSchedule = {
   id: string;
@@ -27,7 +30,8 @@ const GRACE_MS = 30_000;
 export function reconcileSchedules(
   stored: AlarmReminder[],
   native: NativeSchedule[],
-  now: number
+  now: number,
+  outcomes: FiredOutcome[] = []
 ): { alarms: AlarmReminder[]; missed: MissedAlarm[] } {
   const byId = new Map(native.map((row) => [row.id, row]));
   const missed: MissedAlarm[] = [];
@@ -42,7 +46,13 @@ export function reconcileSchedules(
     const nativeAdvanced =
       row != null && row.nextFireAt != null && row.nextFireAt > (scheduledAt ?? 0);
 
-    const wasMissed = alarm.enabled && elapsed && !nativeAdvanced;
+    // A one-time reminder is retired the moment it fires, so no native row
+    // survives to prove it ran. Its recorded outcome is that proof.
+    const outcomeProvesItFired =
+      scheduledAt != null &&
+      outcomes.some((o) => o.alarmId === alarm.id && o.at >= scheduledAt);
+
+    const wasMissed = alarm.enabled && elapsed && !nativeAdvanced && !outcomeProvesItFired;
     if (wasMissed) {
       missed.push({ id: alarm.id, title: alarm.title, scheduledAt: scheduledAt! });
     }
